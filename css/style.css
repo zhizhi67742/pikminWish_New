@@ -42,6 +42,33 @@ body {
   backdrop-filter: blur(10px);
 }
 
+
+.top-tag-group{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.manage-link{
+  display:inline-block;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: #ffd966;
+  font-size: 13px;
+  letter-spacing: 2px;
+  backdrop-filter: blur(10px);
+  text-decoration:none;
+  transition:0.2s;
+}
+
+.manage-link:hover{
+  background: rgba(255,255,255,0.2);
+}
+
 .site-header h1 {
   margin: 18px 0 10px;
   font-size: clamp(40px, 8vw, 72px);
