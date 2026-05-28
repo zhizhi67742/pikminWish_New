@@ -112,6 +112,13 @@ function getCurrentNickname() {
 }
 
 
+
+
+function getCurrentUserUid() {
+  const user = window.currentPikminUser || (window.firebaseAuth && window.firebaseAuth.currentUser);
+  return user && user.uid ? String(user.uid) : "";
+}
+
 function normalizeNicknameOnly(value) {
   return String(value || "").trim().replace(/_(LINE|DC)$/i, "");
 }
@@ -993,6 +1000,8 @@ async function addWish() {
     id: Date.now(),
     flower: flower,
     nickname: nickname,
+      uid: getCurrentUserUid(),
+    uid: getCurrentUserUid(),
     createdAt: formatNow(),
     timeRange: start + " - " + end,
     deleteAt: getWishDeleteAtThreeDaysLater(),
@@ -1151,7 +1160,8 @@ function deleteWish(id) {
     return;
   }
 
-  if (String(getCurrentNickname()).trim() !== String(wish.nickname).trim()) {
+  const currentUid = getCurrentUserUid();
+  if (currentUid && wish.uid && String(currentUid).trim() !== String(wish.uid).trim()) {
     alert("只有原許願者可以刪除。");
     return;
   }
@@ -1233,7 +1243,9 @@ function confirmTakeOrder() {
 
   takenWishes.forEach(function (wish) {
     wish.farmer = nickname;
+    wish.farmerUid = getCurrentUserUid();
     wish.acceptedBy = nickname;
+    wish.acceptedByUid = getCurrentUserUid();
     wish.farmerPlatform = getCurrentPlatform();
     wish.acceptedByPlatform = getCurrentPlatform();
     wish.acceptedAt = acceptedAt;
@@ -1244,7 +1256,9 @@ function confirmTakeOrder() {
       const { updateDoc, doc } = window.firebaseFns;
       updateDoc(doc(window.firebaseDB, "wishes", wish.firebaseId), {
         acceptedBy: nickname,
+        acceptedByUid: getCurrentUserUid(),
         farmer: nickname,
+        farmerUid: getCurrentUserUid(),
         acceptedByPlatform: getCurrentPlatform(),
         farmerPlatform: getCurrentPlatform(),
         acceptedAt: wish.acceptedAt,
@@ -1673,7 +1687,9 @@ async function confirmDone() {
       nickname: "",
       requester: "",
       farmer: currentName,
+      farmerUid: currentUid,
       acceptedBy: currentName,
+      acceptedByUid: currentUid,
       farmerPlatform: getCurrentPlatform(),
       acceptedByPlatform: getCurrentPlatform(),
       requesterPlatform: "",
@@ -1991,7 +2007,8 @@ function renderWishes() {
         <div class="wish-actions merged-help-action">
           <button class="detail-btn" type="button" data-detail-wish-key="${escapeHtml(groupWishKeys)}">詳細資訊</button>
           ${group.some(function(wish){
-            return !wish.isExample && getCurrentNickname() && String(getCurrentNickname()).trim() === String(wish.nickname).trim();
+            const currentUid = getCurrentUserUid();
+            return !wish.isExample && currentUid && String(wish.uid || "").trim() === String(currentUid).trim();
           }) ? `<button class="delete-btn outer-delete-btn" type="button" data-delete-group="${escapeHtml(groupWishKeys)}">刪除我的許願</button>` : ""}
         </div>
       </article>
@@ -2003,7 +2020,7 @@ function getPendingGroupKey(item) {
   return [
     String(item.flower || "").trim(),
     normalizeWishTimeRange(item.timeRange),
-    String(item.farmer || item.acceptedBy || "").trim(),
+    String(item.farmerUid || item.acceptedByUid || item.farmer || item.acceptedBy || "").trim(),
     String(item.acceptedAt || "").trim()
   ].join("__");
 }
@@ -3309,7 +3326,9 @@ async function startFirebaseSync() {
 
     await updateDoc(doc(db, "wishes", firebaseId), {
       acceptedBy: nickname,
+        acceptedByUid: getCurrentUserUid(),
       farmer: nickname,
+        farmerUid: getCurrentUserUid(),
       acceptedByPlatform: getCurrentPlatform(),
       farmerPlatform: getCurrentPlatform(),
       farmerUid: window.currentPikminUser ? window.currentPikminUser.uid : "",
