@@ -1,4 +1,4 @@
-const CACHE_NAME = "pikminwish-v3";
+const CACHE_NAME = "pikminwish-url-updated-20260528-v2";
 const ASSETS = [
   "./",
   "./index.html",
