@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>花農許願池</title>
-<link href="css/style.css?v=custom-flower-visible-20260528" rel="stylesheet"/>
+<link href="css/style.css?v=history-pager-center-20260531-002" rel="stylesheet"/>
 <style>
 .wish-history-item{
   background: rgba(255,255,255,0.05);
@@ -254,6 +254,19 @@
 
 .google-entry-btn:hover{
   transform:translateY(-1px);
+}
+
+
+.edit-done-btn-mini{
+background:none!important;
+border:none!important;
+padding:0 2px!important;
+margin-left:4px!important;
+font-size:13px!important;
+min-width:auto!important;
+width:auto!important;
+height:auto!important;
+box-shadow:none!important;
 }
 
 </style>
@@ -507,6 +520,73 @@ h1 {
 <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png?v3">
 <link rel="apple-touch-icon" href="./icon-512.png?v3">
 
+
+<style id="dc-line-layout-emergency-fix">
+#quick-wish{display:block!important;width:100%!important;clear:both!important;}
+#quick-wish>.collapse-btn{display:flex!important;width:100%!important;margin:0 0 8px 0!important;}
+#quick-wish .wish-source-filter-row{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;width:100%!important;clear:both!important;margin:10px 0 12px!important;position:relative!important;left:auto!important;right:auto!important;top:auto!important;transform:none!important;}
+#quick-wish .platform-filter-tabs{display:inline-flex!important;align-items:center!important;gap:6px!important;flex-wrap:wrap!important;width:auto!important;max-width:100%!important;margin:0!important;clear:none!important;float:none!important;position:relative!important;}
+#quick-wish .platform-filter-btn{appearance:none!important;-webkit-appearance:none!important;border:1px solid rgba(255,255,255,.25)!important;background:rgba(42,88,38,.68)!important;color:#fff!important;border-radius:999px!important;height:30px!important;min-height:30px!important;min-width:54px!important;width:auto!important;padding:0 12px!important;font-size:13px!important;font-weight:700!important;line-height:1!important;box-sizing:border-box!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;white-space:nowrap!important;box-shadow:none!important;}
+#quick-wish .platform-filter-btn.active{background:#ffdf62!important;color:#20351f!important;border-color:rgba(255,255,255,.55)!important;}
+#quick-wish .order-filter-tabs{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;flex-wrap:wrap!important;width:100%!important;margin:0 0 12px 0!important;clear:both!important;}
+#quick-wish .order-filter-btn{width:auto!important;min-width:0!important;max-width:100%!important;white-space:nowrap!important;}
+@media(max-width:640px){#quick-wish .wish-source-filter-row{gap:6px!important;}#quick-wish .wish-source-filter-label{width:100%!important;height:auto!important;}#quick-wish .platform-filter-tabs{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important;}#quick-wish .platform-filter-btn{width:100%!important;min-width:0!important;font-size:12px!important;padding:0 6px!important;}#quick-wish .order-filter-tabs{display:grid!important;grid-template-columns:1fr!important;}#quick-wish .order-filter-btn{width:100%!important;}}
+</style>
+
+
+<style id="order-filter-small-left-fix">
+/* 訂單篩選按鈕：電腦與手機都維持小顆、靠左、並排，不拉滿 */
+#quick-wish .order-filter-tabs,
+#quick-pending .order-filter-tabs,
+.order-filter-tabs[data-filter-area="wishList"],
+.order-filter-tabs[data-filter-area="pendingList"]{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:8px !important;
+  width:auto !important;
+  max-width:100% !important;
+  margin-left:0 !important;
+}
+#quick-wish .order-filter-btn,
+#quick-pending .order-filter-btn,
+.order-filter-tabs[data-filter-area="wishList"] .order-filter-btn,
+.order-filter-tabs[data-filter-area="pendingList"] .order-filter-btn{
+  flex:0 0 auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+  white-space:nowrap !important;
+  padding-left:16px !important;
+  padding-right:16px !important;
+}
+@media (max-width:640px){
+  #quick-wish .order-filter-tabs,
+  #quick-pending .order-filter-tabs,
+  .order-filter-tabs[data-filter-area="wishList"],
+  .order-filter-tabs[data-filter-area="pendingList"]{
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:nowrap !important;
+    justify-content:flex-start !important;
+    gap:6px !important;
+    overflow-x:auto !important;
+    width:auto !important;
+  }
+  #quick-wish .order-filter-btn,
+  #quick-pending .order-filter-btn,
+  .order-filter-tabs[data-filter-area="wishList"] .order-filter-btn,
+  .order-filter-tabs[data-filter-area="pendingList"] .order-filter-btn{
+    flex:0 0 auto !important;
+    width:auto !important;
+    font-size:12px !important;
+    padding-left:10px !important;
+    padding-right:10px !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <div aria-busy="true" aria-live="polite" class="app-loading-overlay" id="appLoadingOverlay">
@@ -603,6 +683,14 @@ h1 {
 <span>🌸 許願區</span>
 <span class="collapse-icon">▼</span>
 </button>
+<div class="wish-source-filter-row" data-platform-filter-area="wishList" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;clear:both;margin:10px 0 12px 0;box-sizing:border-box;">
+<span class="wish-source-filter-label" style="display:inline-flex;align-items:center;height:30px;padding:0 2px;font-size:13px;font-weight:700;color:#ffe16b;white-space:nowrap;">訂單來源</span>
+<div class="platform-filter-tabs" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0;clear:none;width:auto;max-width:100%;" data-platform-filter-area="wishList">
+<button class="platform-filter-btn active" onclick="window.setWishPlatformFilter && window.setWishPlatformFilter('all')" data-platform-mode="all" data-platform-target="wishList" style="display:inline-flex;align-items:center;justify-content:center;height:30px;min-width:54px;padding:0 12px;border-radius:999px;box-sizing:border-box;white-space:nowrap;" type="button">全部</button>
+<button class="platform-filter-btn" onclick="window.setWishPlatformFilter && window.setWishPlatformFilter('dc')" data-platform-mode="dc" data-platform-target="wishList" style="display:inline-flex;align-items:center;justify-content:center;height:30px;min-width:54px;padding:0 12px;border-radius:999px;box-sizing:border-box;white-space:nowrap;" type="button">DC</button>
+<button class="platform-filter-btn" onclick="window.setWishPlatformFilter && window.setWishPlatformFilter('line')" data-platform-mode="line" data-platform-target="wishList" style="display:inline-flex;align-items:center;justify-content:center;height:30px;min-width:54px;padding:0 12px;border-radius:999px;box-sizing:border-box;white-space:nowrap;" type="button">LINE</button>
+</div>
+</div>
 <div class="order-filter-tabs" data-filter-area="wishList">
 <button class="order-filter-btn active" data-filter-mode="all" data-filter-target="wishList" type="button">顯示所有訂單</button>
 <button class="order-filter-btn" data-filter-mode="mine" data-filter-target="wishList" type="button">僅顯示自己發的訂單</button>
@@ -696,6 +784,30 @@ h1 {
 </div>
 </div>
 </section>
+
+<section class="panel dex-ai-import-panel">
+  <div class="dex-ai-import-head">
+    <div>
+      <h3>🤖 AI 圖鑑匯入</h3>
+      <p class="hint">先把截圖傳給 ChatGPT 辨識，再把回傳的 JSON 貼到這裡匯入。匯入前會先預覽，不會直接覆蓋。</p>
+    </div>
+    <button class="dex-ai-toggle-btn" onclick="toggleDexAiImport()" type="button">展開 / 收合</button>
+  </div>
+  <div class="dex-ai-import-body" id="dexAiImportBody">
+    <div class="dex-ai-actions">
+      <button class="secondary-btn" onclick="copyDexAiPrompt()" type="button">複製 AI 指令</button>
+      <button class="secondary-btn" onclick="clearDexAiImport()" type="button">清空內容</button>
+    </div>
+    <textarea id="dexAiImportText" class="dex-ai-textarea" placeholder='請貼上 ChatGPT 回傳的 JSON，例如：&#10;[{"color":"白","flower":"勿忘草","petal":600,"essence":26}]'></textarea>
+    <div class="dex-ai-actions">
+      <button class="confirm-btn" onclick="previewDexAiImport()" type="button">解析預覽</button>
+      <button class="confirm-btn" onclick="applyDexAiImport()" type="button">套用到圖鑑</button>
+    </div>
+    <p class="hint" id="dexAiImportStatus">目前尚未解析資料。</p>
+    <div class="dex-ai-preview" id="dexAiImportPreview"></div>
+  </div>
+</section>
+
 <div class="dex-list" id="flowerDexList"></div>
 </section>
 <section class="page-section" id="changelog">
@@ -711,10 +823,34 @@ h1 {
 <article class="update-card latest">
 <div class="update-card-head">
 <div>
+<div class="update-version">🌸 PikminWish v1.3.1</div>
+<div class="update-date">2026 / 05 / 31</div>
+</div>
+<span class="latest-tag">最新</span>
+</div>
+<div class="update-section">
+<h3>🛠 系統修正</h3>
+<ul>
+<li>修正花農自行上傳座標失效問題。</li>
+<li>修正登入後部分裝置發生網頁跳轉異常問題。</li>
+</ul>
+</div>
+<div class="update-section">
+<h3>🌱 功能新增</h3>
+<ul>
+<li>新增圖片辨識圖鑑功能，可快速匯入圖鑑資料。</li>
+<li>新增 Dc &amp; Line 許願單分類選項。</li>
+<li>新增花農修改功能，可於暱稱旁快速修改座標與備註資訊。</li>
+</ul>
+</div>
+</article>
+
+<article class="update-card">
+<div class="update-card-head">
+<div>
 <div class="update-version">🌸 PikminWish v1.3.0</div>
 <div class="update-date">2026 / 05 / 28</div>
 </div>
-<span class="latest-tag">最新</span>
 </div>
 <div class="update-section">
 <h3>🛠 系統修正</h3>
@@ -898,16 +1034,35 @@ h1 {
 </div>
 </div>
 </div>
-<script src="js/app.js?v=custom-flower-visible-20260528"></script>
+
+<div class="modal" id="editDoneModal">
+<div class="modal-box modal-box-large">
+<h2>修改分享內容</h2>
+<p>只能修改備註與座標，花名、花農與分享類型不會變更。</p>
+<input id="editHarvestInfoInput" placeholder="備註／採收資訊，例如：印度、8朵、隨意收" type="text"/>
+<textarea class="coord-input" id="editShareLocationInput" placeholder="分享地點／座標，例如：
+22.xxx601,89.xxx802
+22.xxx729,89.xxx030" rows="5"></textarea>
+<div class="modal-actions">
+<button class="cancel-btn" onclick="closeEditDoneModal()" type="button">取消</button>
+<button class="confirm-btn" onclick="saveDoneEdit()" type="button">儲存修改</button>
+</div>
+</div>
+</div>
+<script src="js/app.js?v=history-pager-center-20260531-002"></script>
 <!-- Firebase -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
     import {
       getAuth,
       GoogleAuthProvider,
+      signInWithRedirect,
       signInWithPopup,
+      getRedirectResult,
       signOut,
-      onAuthStateChanged
+      onAuthStateChanged,
+      setPersistence,
+      browserLocalPersistence
     } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
     import {
       getFirestore,
@@ -936,10 +1091,15 @@ h1 {
     const db = getFirestore(app);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
+    setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.warn("Firebase 登入狀態保存設定失敗", error);
+    });
 
     window.firebaseDB = db;
     window.firebaseAuth = auth;
     window.currentPikminUser = null;
+    window.__pikminAuthResolvedUser = null;
+    window.__pikminAuthStateReady = false;
     window.firebaseFns = {
       collection,
       addDoc,
@@ -951,45 +1111,163 @@ h1 {
       getDoc
     };
 
+    function hideGoogleEntryOverlay() {
+      const overlay = document.getElementById("googleEntryOverlay");
+      if (!overlay) return;
+      overlay.classList.add("hide");
+      overlay.style.setProperty("display", "none", "important");
+      overlay.style.setProperty("visibility", "hidden", "important");
+      overlay.style.setProperty("pointer-events", "none", "important");
+    }
+
+    function showGoogleEntryOverlay() {
+      const overlay = document.getElementById("googleEntryOverlay");
+      if (!overlay) return;
+      overlay.classList.remove("hide");
+      overlay.style.removeProperty("display");
+      overlay.style.removeProperty("visibility");
+      overlay.style.removeProperty("pointer-events");
+    }
+
+    function hideNicknameGate() {
+      const gate = document.getElementById("nicknameGate");
+      if (!gate) return;
+      gate.classList.add("hidden-gate");
+      gate.style.setProperty("display", "none", "important");
+      gate.style.setProperty("visibility", "hidden", "important");
+      gate.style.setProperty("pointer-events", "none", "important");
+      document.body.style.overflow = "";
+    }
+
+    function showNicknameGate() {
+      const gate = document.getElementById("nicknameGate");
+      if (!gate) return;
+      gate.classList.remove("hidden-gate");
+      gate.style.setProperty("display", "flex", "important");
+      gate.style.setProperty("visibility", "visible", "important");
+      gate.style.setProperty("pointer-events", "auto", "important");
+      document.body.style.overflow = "hidden";
+    }
+
     function updateGoogleLoginUi(user) {
       const status = document.getElementById("googleLoginStatus");
       const loginBtn = document.getElementById("googleLoginBtn");
       const logoutBtn = document.getElementById("googleLogoutBtn");
 
       if (user) {
+        window.__pikminAuthStateReady = true;
         window.currentPikminUser = user;
+        window.__pikminAuthResolvedUser = user;
+        window.__pikminGoogleSessionOk = true;
+        sessionStorage.setItem("pikminGoogleSessionOk", "true");
         if (status) status.textContent = `${user.displayName || user.email || "Google 使用者"}`;
         if (loginBtn) loginBtn.style.display = "none";
         if (logoutBtn) logoutBtn.style.display = "inline-flex";
       } else {
+        if (!window.__pikminKeepAuthOverlayHidden) {
+          window.__pikminAuthStateReady = true;
+        }
         window.currentPikminUser = null;
+        window.__pikminAuthResolvedUser = null;
         if (status) status.textContent = "尚未登入 Google";
         if (loginBtn) loginBtn.style.display = "inline-flex";
         if (logoutBtn) logoutBtn.style.display = "none";
       }
     }
 
+    function syncAuthDom(user, options = {}) {
+      updateGoogleLoginUi(user);
+      if (user) {
+        localStorage.removeItem("previewMode");
+        window.__pikminGoogleSessionOk = true;
+        sessionStorage.setItem("pikminGoogleSessionOk", "true");
+        localStorage.removeItem("googleLoginRedirecting");
+        localStorage.removeItem("googleLoginRedirectingAt");
+        if (typeof removePreviewLock === "function") removePreviewLock();
+        hideGoogleEntryOverlay();
+        hideNicknameGate();
+        if (options.openNicknameGate !== false) {
+          setTimeout(showNicknameGate, 260);
+        }
+      } else {
+        hideNicknameGate();
+        const isReturningFromGoogle = localStorage.getItem("googleLoginRedirecting") === "true";
+        const redirectAt = Number(localStorage.getItem("googleLoginRedirectingAt") || "0");
+        const redirectAge = redirectAt ? Date.now() - redirectAt : 0;
+
+        if (!window.__pikminAuthStateReady && !isReturningFromGoogle) {
+          hideGoogleEntryOverlay();
+          return;
+        }
+
+        // iOS 主畫面 PWA：Google 回跳後 auth.currentUser 可能比 getRedirectResult 晚恢復。
+        // 這段時間先不要把登入畫面蓋回來，避免看起來像「登入成功又被踢回登入」。
+        if (isReturningFromGoogle && (!redirectAt || redirectAge < 15000)) {
+          hideGoogleEntryOverlay();
+          setTimeout(() => {
+            if (!auth.currentUser && localStorage.getItem("googleLoginRedirecting") === "true") {
+              syncAuthDom(auth.currentUser, { openNicknameGate: false });
+            }
+          }, 700);
+          return;
+        }
+
+        localStorage.removeItem("googleLoginRedirecting");
+        localStorage.removeItem("googleLoginRedirectingAt");
+        showGoogleEntryOverlay();
+      }
+    }
+
+    window.syncGoogleAuthDom = syncAuthDom;
+
+    function isIosStandalonePwa() {
+      const ua = navigator.userAgent || "";
+      const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+      return isIos && isStandalone;
+    }
+
     window.loginWithGoogle = async function () {
       localStorage.removeItem("previewMode");
+      localStorage.setItem("googleLoginRedirecting", "true");
+      localStorage.setItem("googleLoginRedirectingAt", String(Date.now()));
       if (typeof removePreviewLock === "function") removePreviewLock();
-      const googleEntryOverlayBeforeLogin = document.getElementById("googleEntryOverlay");
-      if (googleEntryOverlayBeforeLogin) googleEntryOverlayBeforeLogin.classList.add("hide");
-      localStorage.removeItem("previewMode");
-      const entryOverlayBeforeLogin = document.getElementById("googleEntryOverlay");
-      if (entryOverlayBeforeLogin) entryOverlayBeforeLogin.classList.add("hide");
-      localStorage.removeItem("previewMode");
-      localStorage.removeItem("previewMode");
+      hideGoogleEntryOverlay();
+
       try {
-        await signInWithPopup(auth, provider);
+        await setPersistence(auth, browserLocalPersistence);
+
+        // iPhone「加入主畫面」PWA 用 redirect 回來後常會拿不到 Firebase session。
+        // 所以 PWA 先用 popup 登入；若 popup 被系統擋掉，再退回 redirect。
+        if (isIosStandalonePwa()) {
+          try {
+            const result = await signInWithPopup(auth, provider);
+            if (result && result.user) {
+              localStorage.removeItem("googleLoginRedirecting");
+              localStorage.removeItem("googleLoginRedirectingAt");
+              syncAuthDom(result.user);
+              return;
+            }
+          } catch (popupError) {
+            console.warn("iOS PWA popup 登入失敗，改用 redirect", popupError);
+          }
+        }
+
+        await signInWithRedirect(auth, provider);
       } catch (error) {
+        localStorage.removeItem("googleLoginRedirecting");
+        localStorage.removeItem("googleLoginRedirectingAt");
         console.error("Google 登入失敗", error);
-        alert("Google 登入失敗，請稍後再試。");
+        alert("Google 登入失敗：" + (error && error.code ? error.code : "請稍後再試") + "。若你正在主畫面 APP 內，請先用 Safari 開啟網站登入。");
+        showGoogleEntryOverlay();
       }
     };
 
     window.logoutGoogle = async function () {
       try {
         await signOut(auth);
+        window.__pikminGoogleSessionOk = false;
+        sessionStorage.removeItem("pikminGoogleSessionOk");
         localStorage.removeItem("previewMode");
         removePreviewLock();
         const googleEntryOverlayAfterLogout = document.getElementById("googleEntryOverlay");
@@ -1015,47 +1293,49 @@ h1 {
       }
     };
 
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result && result.user) {
+          syncAuthDom(result.user);
+        } else if (!auth.currentUser) {
+          // iOS / PWA 回跳後 getRedirectResult 有時會先回傳空值，
+          // 但 Firebase Auth 狀態會稍晚才恢復；不要在這裡立刻打開登入畫面。
+          syncAuthDom(null);
+        }
+      })
+      .catch((error) => {
+        localStorage.removeItem("googleLoginRedirecting");
+        localStorage.removeItem("googleLoginRedirectingAt");
+        console.error("Google redirect 登入結果讀取失敗", error);
+        showGoogleEntryOverlay();
+      });
+
     onAuthStateChanged(auth, (user) => {
-      updateGoogleLoginUi(user);
-
-      const googleEntryOverlay = document.getElementById("googleEntryOverlay");
-
-      const nicknameGate = document.getElementById("nicknameGate");
-
-      if (user) {
-        localStorage.removeItem("previewMode");
-        if (typeof removePreviewLock === "function") {
-          removePreviewLock();
-        }
-
-        if (googleEntryOverlay) googleEntryOverlay.classList.add("hide");
-
-        if (nicknameGate) {
-          nicknameGate.classList.add("hidden-gate");
-          nicknameGate.style.setProperty("display", "none", "important");
-          nicknameGate.style.setProperty("visibility", "hidden", "important");
-          nicknameGate.style.setProperty("pointer-events", "none", "important");
-
-          setTimeout(() => {
-            nicknameGate.classList.remove("hidden-gate");
-            nicknameGate.style.setProperty("display", "flex", "important");
-            nicknameGate.style.setProperty("visibility", "visible", "important");
-            nicknameGate.style.setProperty("pointer-events", "auto", "important");
-            document.body.style.overflow = "hidden";
-          }, 260);
-        }
-
-      } else {
-        if (nicknameGate) {
-          nicknameGate.classList.add("hidden-gate");
-          nicknameGate.style.setProperty("display", "none", "important");
-          nicknameGate.style.setProperty("visibility", "hidden", "important");
-          nicknameGate.style.setProperty("pointer-events", "none", "important");
-        }
-        if (googleEntryOverlay) googleEntryOverlay.classList.remove("hide");
-      }
-
+      window.__pikminAuthStateReady = true;
+      syncAuthDom(user);
       window.dispatchEvent(new Event("firebase-ready"));
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      hideGoogleEntryOverlay();
+      if (auth.currentUser) {
+        syncAuthDom(auth.currentUser, { openNicknameGate: true });
+      }
+      setTimeout(() => {
+        if (auth.currentUser) {
+          syncAuthDom(auth.currentUser, { openNicknameGate: false });
+        } else if (window.__pikminAuthStateReady && localStorage.getItem("googleLoginRedirecting") !== "true") {
+          syncAuthDom(null, { openNicknameGate: false });
+        }
+      }, 1200);
+      setTimeout(() => {
+        if (!auth.currentUser && localStorage.getItem("googleLoginRedirecting") === "true" && sessionStorage.getItem("pikminGoogleSessionOk") !== "true") {
+          localStorage.removeItem("googleLoginRedirecting");
+          localStorage.removeItem("googleLoginRedirectingAt");
+          window.__pikminAuthStateReady = true;
+          showGoogleEntryOverlay();
+        }
+      }, 22000);
     });
   </script>
 <div class="google-entry-overlay" id="googleEntryOverlay">
@@ -1186,7 +1466,7 @@ h1 {
 <a class="footer-mobile-btn" href="https://line.me/ti/g2/J5Fc9xmn_yQcE-ZKfAfGxPe4VjUrdTslS-I9kQ?utm_source=invitation&amp;utm_medium=link_copy&amp;utm_campaign=default" target="_blank">💚 LINE</a>
 </div>
 <div>
-    © 2026 梔梔 v1.3.0 ｜ 許願池及花朵圖鑑
+    © 2026 梔梔 v1.3.1 ｜ 許願池及花朵圖鑑
   </div>
 </div>
 <script>
@@ -1573,8 +1853,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const entryOverlay = document.getElementById("googleEntryOverlay");
     const user = getCurrentUser();
 
-    if (user) {
+    if (!window.__pikminAuthStateReady && !window.__pikminAuthResolvedUser) {
+      if (entryOverlay) entryOverlay.classList.add("hide");
+      return;
+    }
+
+    if (user || window.currentPikminUser || window.__pikminAuthResolvedUser) {
       localStorage.removeItem("previewMode");
+      window.__pikminGoogleSessionOk = true;
+      sessionStorage.setItem("pikminGoogleSessionOk", "true");
+      localStorage.removeItem("googleLoginRedirecting");
+      localStorage.removeItem("googleLoginRedirectingAt");
+      removePreviewLock();
+      if (entryOverlay) entryOverlay.classList.add("hide");
+      return;
+    }
+
+    const isReturningFromGoogle = localStorage.getItem("googleLoginRedirecting") === "true";
+    const redirectAt = Number(localStorage.getItem("googleLoginRedirectingAt") || "0");
+    const redirectAge = redirectAt ? Date.now() - redirectAt : 0;
+    if (isReturningFromGoogle && (!redirectAt || redirectAge < 15000)) {
+      if (entryOverlay) entryOverlay.classList.add("hide");
+      return;
+    }
+
+    // 已經在本次 PWA 工作階段成功登入過時，不要因為 iOS/Firebase 短暫讀不到 currentUser
+    // 就把登入畫面重新蓋回來。真正登出會在 logoutGoogle() 清掉這個旗標。
+    if (window.__pikminGoogleSessionOk || sessionStorage.getItem("pikminGoogleSessionOk") === "true") {
       removePreviewLock();
       if (entryOverlay) entryOverlay.classList.add("hide");
       return;
@@ -1617,7 +1922,7 @@ document.addEventListener("DOMContentLoaded", () => {
 /* Preview mode click guard fix: keep page read-only, but let the status 【登入】 button be clicked. */
 (function () {
   function isPreviewOn() {
-    return localStorage.getItem("previewMode") === "true" && !(window.firebaseAuth && window.firebaseAuth.currentUser);
+    return localStorage.getItem("previewMode") === "true" && !(window.currentPikminUser || window.__pikminAuthResolvedUser || (window.firebaseAuth && window.firebaseAuth.currentUser));
   }
 
   function isAllowedPreviewTarget(target) {
@@ -1671,15 +1976,22 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 
+
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js");
   });
 }
+
+function clearDexAiImport(){
+  const ta=document.getElementById("dexAiImportText");
+  if(ta) ta.value="";
+  const preview=document.getElementById("dexAiPreview");
+  if(preview) preview.innerHTML="";
+  window.dexAiParsedData=[];
+}
 </script>
 
 </body>
 </html>
-
-a, .top-badge a { text-decoration: none !important; }

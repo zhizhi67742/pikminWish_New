@@ -32,6 +32,7 @@ let done = [];
 let wishHistory = [];
 let selectedWishId = null;
 let selectedPendingId = null;
+let selectedDoneEditKey = null;
 let locallyDeletedWishKeys = new Set();
 let spamWishCleanupRunning = false;
 let spamWishCleanupDoneKeys = new Set();
@@ -1118,6 +1119,13 @@ document.addEventListener("click", function (event) {
     return;
   }
 
+  const editDoneBtn = event.target.closest(".edit-done-btn[data-done-key]");
+  if (editDoneBtn) {
+    event.preventDefault();
+    openEditDoneModal(editDoneBtn.dataset.doneKey);
+    return;
+  }
+
   const toggleCoordBtn = event.target.closest(".toggle-coord-btn[data-target]");
   if (toggleCoordBtn) {
     event.preventDefault();
@@ -1617,7 +1625,7 @@ function addLocalWishHistory(record) {
 }
 
 let historyPage = 1;
-const HISTORY_PAGE_SIZE = 50;
+const HISTORY_PAGE_SIZE = 30;
 
 function renderWishHistory() {
   const list = document.getElementById("wishHistoryList");
@@ -1650,18 +1658,33 @@ function renderWishHistory() {
   }).join("");
 
   const pager = sortedHistory.length > HISTORY_PAGE_SIZE
-    ? `<div class="history-pager"><button type="button" onclick="changeHistoryPage(-1)" ${historyPage <= 1 ? "disabled" : ""}>上一頁</button><span>${historyPage} / ${totalPages}</span><button type="button" onclick="changeHistoryPage(1)" ${historyPage >= totalPages ? "disabled" : ""}>下一頁</button></div>`
+    ? `<div class="history-pager"><button class="history-page-btn" type="button" data-history-page="-1" ${historyPage <= 1 ? "disabled" : ""}>上一頁</button><span class="history-page-info">${historyPage} / ${totalPages}</span><button class="history-page-btn" type="button" data-history-page="1" ${historyPage >= totalPages ? "disabled" : ""}>下一頁</button></div>`
     : "";
 
   list.innerHTML = header + rows + pager;
 }
 
 function changeHistoryPage(direction) {
-  historyPage += direction;
+  const step = Number(direction) || 0;
+  historyPage += step;
 
   if (historyPage < 1) historyPage = 1;
 
   renderWishHistory();
+}
+
+// 歷史許願分頁按鈕是動態產生的，用事件委派避免重新渲染後 onclick 失效或跳頁。
+window.changeHistoryPage = changeHistoryPage;
+if (!window.__pikminHistoryPagerReady) {
+  window.__pikminHistoryPagerReady = true;
+  document.addEventListener("click", function (event) {
+    const btn = event.target.closest(".history-page-btn[data-history-page]");
+    if (!btn || btn.disabled) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    changeHistoryPage(btn.dataset.historyPage);
+  }, true);
 }
 
 async function syncWishHistoryToCloud(record) {
@@ -1690,6 +1713,7 @@ async function confirmDone() {
   if (selectedPendingId === "__farmer_direct_share__") {
     const flower = document.getElementById("flowerInput")?.value?.trim();
     const currentName = getCurrentNickname();
+    const currentUid = getCurrentUserUid();
 
     if (!currentName) {
       alert("請先設定暱稱，才能上傳花農座標。");
@@ -2004,12 +2028,41 @@ function renderWishes() {
   if (!list) return;
   list.innerHTML = "";
 
-  const activeWishes = sortOldestFirst(wishes).filter(function (wish) {
+  let activeWishes = sortOldestFirst(wishes).filter(function (wish) {
     return wish.status !== "pending" && wish.status !== "done";
   });
 
+  const orderMode = (window.orderFilterState && window.orderFilterState.wishList) || "all";
+  const platformMode = (window.platformFilterState && window.platformFilterState.wishList) || "all";
+
+  if (platformMode !== "all") {
+    activeWishes = activeWishes.filter(function (wish) {
+      return normalizePlatformFilterValue(wish.requesterPlatform || wish.platform) === platformMode;
+    });
+  }
+
+  if (orderMode === "mine") {
+    // 「顯示自己發的訂單」：先在資料層只留下自己的許願，再分組。
+    // 這樣合併卡片不會把其他人的同花種許願一起顯示出來。
+    activeWishes = activeWishes.filter(function (wish) {
+      return !wish.isExample && isCurrentWishOwner(wish);
+    });
+  } else if (orderMode === "available") {
+    // 「目前可接訂單」：只要還在時間內就顯示，不再排除自己發的單。
+    activeWishes = activeWishes.filter(function (wish) {
+      return !wish.isExample && isTimeRangeCurrentlyAvailable(wish.timeRange);
+    });
+  }
+
   if (activeWishes.length === 0) {
-    list.innerHTML = '<div class="empty">目前沒有願望卡。</div>';
+    const platformText = platformMode === "dc" ? " DC" : platformMode === "line" ? " LINE" : "";
+    const message = orderMode === "mine"
+      ? "目前沒有自己發的" + platformText + "訂單。"
+      : orderMode === "available"
+        ? "目前沒有時間內可接的" + platformText + "訂單。"
+        : "目前沒有" + platformText + "願望卡。";
+    list.innerHTML = '<div class="empty">' + escapeHtml(message) + '</div>';
+    if (typeof refreshCollapseHeights === "function") refreshCollapseHeights();
     return;
   }
 
@@ -2029,7 +2082,7 @@ function renderWishes() {
     }).join("");
 
     list.innerHTML += `
-      <article class="${cardClass}" data-owner-uid="${escapeHtml(getWishOwnerUid(firstWish))}" data-time-range="${escapeHtml(groupTimeRanges || firstWish.timeRange || "")}" data-currently-available="${groupCurrentlyAvailable ? "true" : "false"}">
+      <article class="${cardClass}" data-owner-uid="${escapeHtml(getWishOwnerUid(firstWish))}" data-owner-uids="${escapeHtml(group.map(function (wish) { return getWishOwnerUid(wish); }).filter(Boolean).join(" "))}" data-owner-names="${escapeHtml(group.map(function (wish) { return normalizeOrderText(wish.nickname || wish.requester || ""); }).filter(Boolean).join(" "))}" data-platforms="${escapeHtml(group.map(function (wish) { return normalizePlatformFilterValue(wish.requesterPlatform || wish.platform); }).filter(Boolean).join(" "))}" data-time-range="${escapeHtml(groupTimeRanges || firstWish.timeRange || "")}" data-currently-available="${groupCurrentlyAvailable ? "true" : "false"}" data-has-real-wish="${group.some(function (wish) { return !wish.isExample; }) ? "true" : "false"}">
         <h3>🌸 ${escapeHtml(firstWish.flower)}</h3>
         <p>目前 ${group.length} 人許願</p>
         <div class="wish-time-summary">
@@ -2045,6 +2098,11 @@ function renderWishes() {
       </article>
     `;
   });
+
+  // 重新渲染後同步按鈕樣式；篩選已在資料層完成，這裡不再二次隱藏願望卡。
+  syncOrderFilterButtons("wishList");
+  syncPlatformFilterButtons("wishList");
+  if (typeof refreshCollapseHeights === "function") refreshCollapseHeights();
 }
 
 function getPendingGroupKey(item) {
@@ -2121,9 +2179,10 @@ function renderDone() {
     const doneKey = getWishKey(item);
     item.liked = hasLikedDoneKey(doneKey);
 
+    const editMini = isCurrentFarmer(item) ? `<button class="edit-done-btn edit-done-btn-mini" type="button" data-done-key="${escapeHtml(doneKey)}" title="修改座標與備註" aria-label="修改座標與備註">✏️</button>` : "";
     const donePeopleHtml = item.directShare
-      ? `<p>📍 分享類型：花農直接上傳</p><p>🌱 分享花農：${displayNameWithTagHtml(item.farmer, item.farmerPlatform || item.acceptedByPlatform)}</p>`
-      : `<p>👤 發願者：${displayNameWithTagHtml(item.nickname, item.requesterPlatform || item.platform)}</p><p>🌱 接單花農：${displayNameWithTagHtml(item.farmer, item.farmerPlatform || item.acceptedByPlatform)}</p>`;
+      ? `<p>📍 分享類型：花農直接上傳</p><p>🌱 分享花農：${displayNameWithTagHtml(item.farmer, item.farmerPlatform || item.acceptedByPlatform)} ${editMini}</p>`
+      : `<p>👤 發願者：${displayNameWithTagHtml(item.nickname, item.requesterPlatform || item.platform)}</p><p>🌱 接單花農：${displayNameWithTagHtml(item.farmer, item.farmerPlatform || item.acceptedByPlatform)} ${editMini}</p>`;
 
     list.innerHTML += `
       <article class="card">
@@ -2153,6 +2212,7 @@ function renderDone() {
           <button class="copy-btn" type="button" data-done-key="${escapeHtml(doneKey)}">
             快速複製座標
           </button>
+          
         </div>
 
         <p>⏰ 剩餘刪除時間：${getRemainTime(item.deleteAt)}</p>
@@ -2210,6 +2270,85 @@ async function toggleLike(id) {
 }
 
 
+
+
+function findDoneByKey(id) {
+  return done.find(function (x) {
+    return String(getWishKey(x)) === String(id);
+  });
+}
+
+function openEditDoneModal(id) {
+  const item = findDoneByKey(id);
+  if (!item) return;
+
+  if (!isCurrentFarmer(item)) {
+    alert("只有上傳的花農可以修改。")
+    return;
+  }
+
+  selectedDoneEditKey = String(id);
+  const harvestInput = document.getElementById("editHarvestInfoInput");
+  const locationInput = document.getElementById("editShareLocationInput");
+  if (harvestInput) harvestInput.value = item.harvestInfo || "";
+  if (locationInput) locationInput.value = item.location || "";
+
+  const modal = document.getElementById("editDoneModal");
+  if (modal) modal.classList.add("show");
+}
+
+function closeEditDoneModal() {
+  selectedDoneEditKey = null;
+  const modal = document.getElementById("editDoneModal");
+  if (modal) modal.classList.remove("show");
+}
+
+async function saveDoneEdit() {
+  const item = findDoneByKey(selectedDoneEditKey);
+  if (!item) {
+    closeEditDoneModal();
+    return;
+  }
+
+  if (!isCurrentFarmer(item)) {
+    alert("只有上傳的花農可以修改。")
+    closeEditDoneModal();
+    return;
+  }
+
+  const harvestInfo = document.getElementById("editHarvestInfoInput")?.value?.trim() || "";
+  const rawLocation = document.getElementById("editShareLocationInput")?.value || "";
+  const location = cleanCoordinates(rawLocation);
+
+  if (!location) {
+    alert("請輸入有效座標，例如：22.817601,89.563802");
+    return;
+  }
+
+  item.harvestInfo = harvestInfo || "沒有補充採收資訊";
+  item.location = location;
+  item.updatedAt = Date.now();
+
+  saveData();
+
+  if (item.firebaseId && window.firebaseDB && window.firebaseFns) {
+    const { updateDoc, doc } = window.firebaseFns;
+    try {
+      await updateDoc(doc(window.firebaseDB, "wishes", item.firebaseId), {
+        harvestInfo: item.harvestInfo,
+        location: item.location,
+        updatedAt: item.updatedAt
+      });
+    } catch (error) {
+      console.error("完成分享修改同步失敗", error);
+      alert("本機已修改，但雲端同步失敗。請重新整理後確認。")
+    }
+  }
+
+  closeEditDoneModal();
+  renderDone();
+  alert("已修改座標與備註。");
+}
 
 function copyHarvestInfo() {
   const harvestInput = document.getElementById("harvestInfoInput");
@@ -3445,9 +3584,10 @@ window.addEventListener("DOMContentLoaded", () => {
     nicknameInput.value = savedNickname;
   }
 
-  // 每次進入網站都顯示規則視窗，但暱稱會自動帶入
+  // 不在 DOMContentLoaded 強制打開規則視窗；改由 Firebase 登入狀態確認後再控制，
+  // 避免 iOS PWA 登入恢復較慢時誤彈登入/規則畫面。
   const gate = document.getElementById("nicknameGate");
-  if (gate) {
+  if (gate && window.currentPikminUser && !localStorage.getItem("flowerWishNickname")) {
     gate.classList.remove("hidden-gate");
   }
 });
@@ -3569,6 +3709,24 @@ window.orderFilterState = window.orderFilterState || {
   pendingList: "all"
 };
 
+window.platformFilterState = window.platformFilterState || {
+  wishList: "all"
+};
+
+function normalizePlatformFilterValue(platform) {
+  const text = String(platform || "").trim().toUpperCase();
+  if (text === "DC" || text === "DISCORD") return "dc";
+  if (text === "LINE") return "line";
+  return "";
+}
+
+function orderCardMatchesPlatform(card, listId) {
+  const platformMode = window.platformFilterState[listId] || "all";
+  if (platformMode === "all") return true;
+  const platforms = String(card.dataset.platforms || "").toLowerCase().split(/\s+/).filter(Boolean);
+  return platforms.includes(platformMode);
+}
+
 function getCurrentPikminUserName() {
   return (localStorage.getItem("flowerWishNickname") || "").trim();
 }
@@ -3642,13 +3800,19 @@ function orderCardBelongsToMe(card, listId, currentName) {
   const currentUid = getCurrentUserUid();
 
   if (listId === "wishList") {
-    const ownerUid = String(card.dataset.ownerUid || "").trim();
-    if (ownerUid) return !!currentUid && ownerUid === currentUid;
+    const ownerUids = String(card.dataset.ownerUids || card.dataset.ownerUid || "")
+      .split(/\s+/)
+      .map(function (uid) { return uid.trim(); })
+      .filter(Boolean);
 
-    // 舊卡沒有 UID 時才用刪除按鈕/暱稱相容。
-    if (card.querySelector(".outer-delete-btn")) return true;
+    // 合併願望卡會同時包含多個許願者；只要其中一筆是自己發的，就要顯示這張卡。
+    if (ownerUids.length > 0) return !!currentUid && ownerUids.includes(currentUid);
+
+    // 舊資料沒有 UID 時，才退回用暱稱相容。
     if (!currentName) return false;
     const cleanName = normalizeOrderText(currentName);
+    const ownerNames = String(card.dataset.ownerNames || "").split(/\s+/).filter(Boolean);
+    if (ownerNames.includes(cleanName)) return true;
     const wishOwner = getFieldValueFromCard(card, ["許願者：", "許願者", "暱稱：", "暱稱"]);
     return normalizeOrderText(wishOwner).includes(cleanName);
   }
@@ -3667,6 +3831,14 @@ function orderCardBelongsToMe(card, listId, currentName) {
   return false;
 }
 
+function orderCardCanBeTaken(card) {
+  if (!card || card.dataset.hasRealWish === "false") return false;
+  if (!orderCardIsCurrentlyAvailable(card)) return false;
+
+  // 「目前可接訂單」只看時間內即可，不排除自己發的單。
+  return true;
+}
+
 function applyOrderFilter(listId) {
   const list = document.getElementById(listId);
   if (!list) return;
@@ -3675,15 +3847,25 @@ function applyOrderFilter(listId) {
   const cards = Array.from(list.children).filter(function (el) {
     return !el.classList.contains("order-filter-empty");
   });
+  const platformMode = window.platformFilterState[listId] || "all";
 
   list.querySelectorAll(".order-filter-empty").forEach(function (el) {
     el.remove();
   });
 
   if (mode === "all") {
+    let shown = 0;
     cards.forEach(function (card) {
-      card.style.display = "";
+      const ok = orderCardMatchesPlatform(card, listId);
+      card.style.display = ok ? "" : "none";
+      if (ok) shown++;
     });
+    if (shown === 0) {
+      const empty = document.createElement("div");
+      empty.className = "order-filter-empty";
+      empty.textContent = platformMode === "dc" ? "目前沒有 DC 訂單。" : platformMode === "line" ? "目前沒有 LINE 訂單。" : "目前沒有訂單。";
+      list.appendChild(empty);
+    }
     if (typeof refreshCollapseHeights === "function") refreshCollapseHeights();
     return;
   }
@@ -3692,7 +3874,7 @@ function applyOrderFilter(listId) {
 
   if (mode === "available" && listId === "wishList") {
     cards.forEach(function (card) {
-      const ok = orderCardIsCurrentlyAvailable(card);
+      const ok = orderCardMatchesPlatform(card, listId) && orderCardCanBeTaken(card);
       card.style.display = ok ? "" : "none";
       if (ok) shown++;
     });
@@ -3709,21 +3891,22 @@ function applyOrderFilter(listId) {
   }
 
   const currentName = getCurrentPikminUserName();
+  const currentUid = getCurrentUserUid();
 
-  if (!currentName) {
+  if (!currentUid && !currentName) {
     cards.forEach(function (card) {
       card.style.display = "none";
     });
     const empty = document.createElement("div");
     empty.className = "order-filter-empty";
-    empty.textContent = "尚未設定暱稱，無法篩選自己的訂單。";
+    empty.textContent = "請先登入或設定暱稱，才能篩選自己的訂單。";
     list.appendChild(empty);
     if (typeof refreshCollapseHeights === "function") refreshCollapseHeights();
     return;
   }
 
   cards.forEach(function (card) {
-    const ok = orderCardBelongsToMe(card, listId, currentName);
+    const ok = orderCardMatchesPlatform(card, listId) && orderCardBelongsToMe(card, listId, currentName);
     card.style.display = ok ? "" : "none";
     if (ok) shown++;
   });
@@ -3744,6 +3927,23 @@ function syncOrderFilterButtons(listId) {
   });
 }
 
+function syncPlatformFilterButtons(listId) {
+  document.querySelectorAll('.platform-filter-btn[data-platform-target="' + listId + '"]').forEach(function (btn) {
+    btn.classList.toggle("active", btn.getAttribute("data-platform-mode") === (window.platformFilterState[listId] || "all"));
+  });
+}
+
+window.setWishPlatformFilter = function (mode) {
+  window.platformFilterState = window.platformFilterState || { wishList: "all" };
+  window.platformFilterState.wishList = mode || "all";
+  syncPlatformFilterButtons("wishList");
+  if (typeof renderWishes === "function") {
+    renderWishes();
+  } else {
+    applyOrderFilter("wishList");
+  }
+};
+
 function initOrderFilters() {
   // 事件委派：按鈕即使重繪也能按
   if (document.body.dataset.orderFilterClickReady !== "1") {
@@ -3762,30 +3962,48 @@ function initOrderFilters() {
 
       window.orderFilterState[listId] = mode;
       syncOrderFilterButtons(listId);
-      applyOrderFilter(listId);
+      if (listId === "wishList" && typeof renderWishes === "function") {
+        renderWishes();
+      } else {
+        applyOrderFilter(listId);
+      }
+    }, true);
+  }
+
+  if (document.body.dataset.platformFilterClickReady !== "1") {
+    document.body.dataset.platformFilterClickReady = "1";
+
+    document.body.addEventListener("click", function (event) {
+      const btn = event.target.closest(".platform-filter-btn");
+      if (!btn) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const listId = btn.getAttribute("data-platform-target");
+      const mode = btn.getAttribute("data-platform-mode") || "all";
+      if (!listId) return;
+
+      window.platformFilterState[listId] = mode;
+      syncPlatformFilterButtons(listId);
+      if (listId === "wishList" && typeof renderWishes === "function") {
+        renderWishes();
+      } else {
+        applyOrderFilter(listId);
+      }
     }, true);
   }
 
   ["wishList", "pendingList"].forEach(function (id) {
     syncOrderFilterButtons(id);
-    applyOrderFilter(id);
+    syncPlatformFilterButtons(id);
 
-    const list = document.getElementById(id);
-    if (!list || list.dataset.orderFilterObserved === "1") return;
-
-    list.dataset.orderFilterObserved = "1";
-    new MutationObserver(function (mutations) {
-      // 避免自己新增空狀態時重複觸發到卡住
-      const hasRealCardChange = mutations.some(function (m) {
-        return Array.from(m.addedNodes).concat(Array.from(m.removedNodes)).some(function (node) {
-          return node.nodeType === 1 && !node.classList.contains("order-filter-empty");
-        });
-      });
-
-      if (hasRealCardChange) {
-        applyOrderFilter(id);
-      }
-    }).observe(list, { childList: true });
+    // 不再監看清單 DOM 變化；避免篩選新增空提示時又觸發篩選，造成卡頓。
+    if (id === "wishList" && typeof renderWishes === "function") {
+      renderWishes();
+    } else {
+      applyOrderFilter(id);
+    }
   });
 }
 
@@ -4111,3 +4329,263 @@ window.updateCurrentNicknameBar = updateCurrentNicknameBar;
     setup();
   }
 })();
+
+/* =========================
+   AI 圖鑑匯入（貼上 ChatGPT 辨識結果）
+   不使用 OCR；網站只負責解析與套用資料。
+========================= */
+let dexAiImportRows = [];
+
+function toggleDexAiImport() {
+  const body = document.getElementById("dexAiImportBody");
+  if (!body) return;
+  body.classList.toggle("open");
+}
+
+function copyDexAiPrompt() {
+  const prompt = `請幫我辨識這張 Pikmin Bloom 圖鑑截圖，並只回傳 JSON 陣列，不要加說明。\n\n格式如下：\n[{"color":"白","flower":"勿忘草","petal":600,"essence":26}]\n\n規則：\n1. color 只用「白、黃、紅、藍」。\n2. flower 不要包含顏色，例如「白色勿忘草」要拆成 color=白、flower=勿忘草。\n3. petal 是花瓣數，essence 是精華數。\n4. 如果截圖是左上花瓣、右下精華，請依照這個位置判斷。\n5. 忽略特殊精華、搜尋列、時間、電量與不完整看不到名稱的項目。`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(prompt).then(function () {
+      alert("已複製 AI 指令，可以貼給 ChatGPT 使用。");
+    }).catch(function () {
+      fallbackCopyText(prompt);
+    });
+  } else {
+    fallbackCopyText(prompt);
+  }
+}
+
+function fallbackCopyText(text) {
+  const temp = document.createElement("textarea");
+  temp.value = text;
+  document.body.appendChild(temp);
+  temp.select();
+  document.execCommand("copy");
+  document.body.removeChild(temp);
+  alert("已複製。");
+}
+
+function fillDexAiSample() {
+  const input = document.getElementById("dexAiImportText");
+  if (!input) return;
+  input.value = JSON.stringify([
+    { color: "白", flower: "勿忘草", petal: 600, essence: 26 },
+    { color: "黃", flower: "勿忘草", petal: 600, essence: 550 },
+    { color: "紅", flower: "勿忘草", petal: 600, essence: 550 },
+    { color: "藍", flower: "勿忘草", petal: 600, essence: 23 }
+  ], null, 2);
+  previewDexAiImport();
+}
+
+function normalizeDexAiColor(value) {
+  const text = String(value || "").trim().replace(/色/g, "");
+  if (/白|white/i.test(text)) return "白";
+  if (/黃|黄|yellow/i.test(text)) return "黃";
+  if (/紅|红|red/i.test(text)) return "紅";
+  if (/藍|蓝|blue/i.test(text)) return "藍";
+  return text.slice(0, 1);
+}
+
+function normalizeDexAiFlowerName(value, color) {
+  let text = String(value || "").trim();
+  text = text.replace(/[\s　]+/g, "");
+  text = text.replace(/^(白色|黃色|黄色|紅色|红色|藍色|蓝色|白|黃|黄|紅|红|藍|蓝)/, "");
+  text = text.replace(/花瓣|精華|精华|花朵|花種|花种/g, "");
+  return text;
+}
+
+function dexAiNumber(value) {
+  const match = String(value ?? "").replace(/[,，]/g, "").match(/\d+/);
+  if (!match) return 0;
+  const n = Number(match[0]);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, 1200);
+}
+
+function findDexAiFlower(name) {
+  const target = String(name || "").trim();
+  if (!target) return null;
+  return (Array.isArray(flowerDex) ? flowerDex : []).find(function (flower) {
+    return flower && String(flower.name || "").trim() === target;
+  }) || null;
+}
+
+function parseDexAiJsonText(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return [];
+
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    const arrayMatch = raw.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try { return JSON.parse(arrayMatch[0]); } catch (e) {}
+    }
+  }
+
+  return raw.split(/\n+/).map(function (line) {
+    const clean = line.trim();
+    if (!clean) return null;
+    const colorMatch = clean.match(/(白色|黃色|黄色|紅色|红色|藍色|蓝色|白|黃|黄|紅|红|藍|蓝)/);
+    const nums = clean.match(/\d+/g) || [];
+    let flower = clean.replace(/\d+/g, "").replace(/花瓣|精華|精华|[:：,，、|/]/g, "").trim();
+    const color = normalizeDexAiColor(colorMatch ? colorMatch[0] : "");
+    flower = normalizeDexAiFlowerName(flower, color);
+    return {
+      color: color,
+      flower: flower,
+      petal: nums.length >= 2 ? Number(nums[0]) : 0,
+      essence: nums.length >= 2 ? Number(nums[1]) : (nums.length === 1 ? Number(nums[0]) : 0)
+    };
+  }).filter(Boolean);
+}
+
+function normalizeDexAiRows(data) {
+  const rows = [];
+  const list = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : []);
+
+  list.forEach(function (item) {
+    if (!item || typeof item !== "object") return;
+    const color = normalizeDexAiColor(item.color || item.c || item.colour || item.顏色 || item.颜色);
+    const flower = normalizeDexAiFlowerName(item.flower || item.name || item.n || item.flowerName || item.花 || item.花名 || item.花種 || item.花种, color);
+    const petal = dexAiNumber(item.petal ?? item.petals ?? item.p ?? item.花瓣);
+    const essence = dexAiNumber(item.essence ?? item.e ?? item.nectar ?? item.精華 ?? item.精华);
+    if (!flower && !color) return;
+
+    const flowerInfo = findDexAiFlower(flower);
+    const validColor = !!(flowerInfo && flowerInfo.colors && flowerInfo.colors.includes(color));
+
+    rows.push({
+      enabled: !!(flowerInfo && validColor),
+      color: color,
+      flower: flower,
+      petal: petal,
+      essence: essence,
+      valid: !!(flowerInfo && validColor),
+      message: !flowerInfo ? "找不到花種" : (!validColor ? "此花沒有這個顏色" : "")
+    });
+  });
+
+  return rows;
+}
+
+function previewDexAiImport() {
+  const input = document.getElementById("dexAiImportText");
+  const status = document.getElementById("dexAiImportStatus");
+  const preview = document.getElementById("dexAiImportPreview");
+  if (!input || !preview) return [];
+
+  const parsed = parseDexAiJsonText(input.value);
+  dexAiImportRows = normalizeDexAiRows(parsed);
+  renderDexAiImportPreview();
+
+  const usable = dexAiImportRows.filter(function (row) { return row.enabled && row.valid; }).length;
+  if (status) {
+    status.textContent = dexAiImportRows.length
+      ? `解析到 ${dexAiImportRows.length} 筆，其中 ${usable} 筆可套用。請確認下方表格後再套用。`
+      : "沒有解析到資料，請確認貼上的 JSON 格式。";
+  }
+
+  return dexAiImportRows;
+}
+
+function getDexAiFlowerOptions(selected) {
+  return (Array.isArray(flowerDex) ? flowerDex : []).map(function (flower) {
+    const name = String(flower.name || "");
+    return `<option value="${escapeHtml(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>`;
+  }).join("");
+}
+
+function getDexAiColorOptions(selected) {
+  return ["白", "黃", "紅", "藍"].map(function (color) {
+    return `<option value="${color}" ${color === selected ? "selected" : ""}>${color}</option>`;
+  }).join("");
+}
+
+function renderDexAiImportPreview() {
+  const preview = document.getElementById("dexAiImportPreview");
+  if (!preview) return;
+
+  if (!dexAiImportRows.length) {
+    preview.innerHTML = '<div class="empty">目前沒有可預覽的資料。</div>';
+    return;
+  }
+
+  let html = '<table><thead><tr><th>套用</th><th>顏色</th><th>花種</th><th>花瓣</th><th>精華</th><th>提醒</th></tr></thead><tbody>';
+  dexAiImportRows.forEach(function (row, index) {
+    html += `<tr>
+      <td><input type="checkbox" ${row.enabled ? "checked" : ""} onchange="updateDexAiRow(${index}, 'enabled', this.checked)"></td>
+      <td><select onchange="updateDexAiRow(${index}, 'color', this.value)">${getDexAiColorOptions(row.color)}</select></td>
+      <td><select onchange="updateDexAiRow(${index}, 'flower', this.value)">${getDexAiFlowerOptions(row.flower)}</select></td>
+      <td><input type="number" min="0" max="1200" value="${row.petal}" onchange="updateDexAiRow(${index}, 'petal', this.value)"></td>
+      <td><input type="number" min="0" max="1200" value="${row.essence}" onchange="updateDexAiRow(${index}, 'essence', this.value)"></td>
+      <td class="${row.valid ? "" : "dex-ai-bad"}">${escapeHtml(row.message || "可套用")}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  preview.innerHTML = html;
+}
+
+function updateDexAiRow(index, field, value) {
+  const row = dexAiImportRows[index];
+  if (!row) return;
+  if (field === "enabled") row.enabled = !!value;
+  else if (field === "petal" || field === "essence") row[field] = dexAiNumber(value);
+  else row[field] = String(value || "").trim();
+
+  const flowerInfo = findDexAiFlower(row.flower);
+  row.valid = !!(flowerInfo && flowerInfo.colors && flowerInfo.colors.includes(row.color));
+  row.message = !flowerInfo ? "找不到花種" : (!row.valid ? "此花沒有這個顏色" : "");
+  if (!row.valid) row.enabled = false;
+  renderDexAiImportPreview();
+}
+
+function applyDexAiImport() {
+  // 先重新讀取表格目前的值，避免使用者改了預覽表但資料沒有同步到暫存陣列。
+  if (!dexAiImportRows.length) previewDexAiImport();
+
+  const rows = dexAiImportRows.filter(function (row) {
+    return row && row.enabled && row.valid;
+  });
+
+  if (!rows.length) {
+    alert("沒有可套用的資料，請先解析或勾選可套用的項目。");
+    return;
+  }
+
+  if (!confirm(`確定要套用 ${rows.length} 筆資料到圖鑑嗎？`)) return;
+
+  const changedFlowers = [];
+  rows.forEach(function (row) {
+    const flower = normalizeDexAiFlowerName(row.flower, row.color);
+    const color = normalizeDexAiColor(row.color);
+    const petalValue = dexAiNumber(row.petal);
+    const essenceValue = dexAiNumber(row.essence);
+    const petalKey = `dex_${flower}_${color}_petal`;
+    const essenceKey = `dex_${flower}_${color}_essence`;
+
+    // 這裡不要只靠 input onchange，直接寫入網站真正使用的 localStorage key。
+    safeSetLocalStorage(petalKey, String(petalValue));
+    safeSetLocalStorage(essenceKey, String(essenceValue));
+    saveDexBackupValue(petalKey, petalValue);
+    saveDexBackupValue(essenceKey, essenceValue);
+
+    if (!changedFlowers.includes(flower)) changedFlowers.push(flower);
+  });
+
+  // 重新渲染後，把剛套用的花種展開，讓使用者可以立刻看到結果。
+  renderDex();
+  changedFlowers.forEach(function (flowerName) {
+    const title = Array.from(document.querySelectorAll(".dex-title")).find(function (btn) {
+      return (btn.dataset.flowerName || "").trim() === flowerName;
+    });
+    if (title && title.parentElement) title.parentElement.classList.add("open");
+  });
+
+  scheduleDexCloudSave();
+
+  const status = document.getElementById("dexAiImportStatus");
+  if (status) status.textContent = `已套用 ${rows.length} 筆資料到圖鑑。`;
+  alert(`已套用 ${rows.length} 筆資料到圖鑑。`);
+}
