@@ -1049,7 +1049,7 @@ h1 {
 </div>
 </div>
 </div>
-<script src="js/app.js?v=history-pager-center-20260531-002"></script>
+<script src="js/app.js?v=google-popup-first-20260531-001"></script>
 <!-- Firebase -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
@@ -1091,6 +1091,7 @@ h1 {
     const db = getFirestore(app);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
     setPersistence(auth, browserLocalPersistence).catch((error) => {
       console.warn("Firebase 登入狀態保存設定失敗", error);
     });
@@ -1231,34 +1232,47 @@ h1 {
       localStorage.removeItem("previewMode");
       localStorage.setItem("googleLoginRedirecting", "true");
       localStorage.setItem("googleLoginRedirectingAt", String(Date.now()));
+      window.__pikminGoogleLoginInProgress = true;
       if (typeof removePreviewLock === "function") removePreviewLock();
       hideGoogleEntryOverlay();
 
       try {
         await setPersistence(auth, browserLocalPersistence);
 
-        // iPhone「加入主畫面」PWA 用 redirect 回來後常會拿不到 Firebase session。
-        // 所以 PWA 先用 popup 登入；若 popup 被系統擋掉，再退回 redirect。
-        if (isIosStandalonePwa()) {
-          try {
-            const result = await signInWithPopup(auth, provider);
-            if (result && result.user) {
-              localStorage.removeItem("googleLoginRedirecting");
-              localStorage.removeItem("googleLoginRedirectingAt");
-              syncAuthDom(result.user);
-              return;
-            }
-          } catch (popupError) {
-            console.warn("iOS PWA popup 登入失敗，改用 redirect", popupError);
+        // 先用 popup 登入：新帳號第一次授權時，比 redirect 更不容易發生
+        // 「回到 GitHub Pages 後 Firebase currentUser 還是 null」的問題。
+        // 如果 popup 被瀏覽器、LINE 或 PWA 擋掉，再自動退回 redirect。
+        try {
+          const result = await signInWithPopup(auth, provider);
+          if (result && result.user) {
+            window.__pikminGoogleLoginInProgress = false;
+            localStorage.removeItem("googleLoginRedirecting");
+            localStorage.removeItem("googleLoginRedirectingAt");
+            syncAuthDom(result.user);
+            return;
           }
+        } catch (popupError) {
+          const popupCode = popupError && popupError.code ? popupError.code : "";
+          const canFallbackToRedirect = [
+            "auth/popup-blocked",
+            "auth/popup-closed-by-user",
+            "auth/cancelled-popup-request",
+            "auth/operation-not-supported-in-this-environment"
+          ].includes(popupCode) || isIosStandalonePwa();
+
+          if (!canFallbackToRedirect) {
+            throw popupError;
+          }
+          console.warn("Google popup 登入未完成，改用 redirect", popupError);
         }
 
         await signInWithRedirect(auth, provider);
       } catch (error) {
+        window.__pikminGoogleLoginInProgress = false;
         localStorage.removeItem("googleLoginRedirecting");
         localStorage.removeItem("googleLoginRedirectingAt");
         console.error("Google 登入失敗", error);
-        alert("Google 登入失敗：" + (error && error.code ? error.code : "請稍後再試") + "。若你正在主畫面 APP 內，請先用 Safari 開啟網站登入。");
+        alert("Google 登入失敗：" + (error && error.code ? error.code : "請稍後再試") + "。若你正在 LINE / 主畫面 APP 內，請改用外部瀏覽器開啟網站登入。");
         showGoogleEntryOverlay();
       }
     };
@@ -1330,12 +1344,14 @@ h1 {
       }, 1200);
       setTimeout(() => {
         if (!auth.currentUser && localStorage.getItem("googleLoginRedirecting") === "true" && sessionStorage.getItem("pikminGoogleSessionOk") !== "true") {
+          // redirect 回來後給 Firebase 更長時間恢復狀態，避免新帳號第一次授權被太早判定為未登入。
           localStorage.removeItem("googleLoginRedirecting");
           localStorage.removeItem("googleLoginRedirectingAt");
+          window.__pikminGoogleLoginInProgress = false;
           window.__pikminAuthStateReady = true;
           showGoogleEntryOverlay();
         }
-      }, 22000);
+      }, 45000);
     });
   </script>
 <div class="google-entry-overlay" id="googleEntryOverlay">
