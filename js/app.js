@@ -299,17 +299,15 @@ const DEFAULT_FLOWER_DEX = [
 
 
 function isLockedFlowerName(name) {
-  const text = String(name || "").trim();
-  return text === "風鈴草" || /風鈴草/.test(text);
+  return false;
 }
 
 function isLockedWishFlowerValue(value) {
-  const text = String(value || "").trim();
-  return /風鈴草/.test(text);
+  return false;
 }
 
 function warnLockedFlower() {
-  alert("風鈴草 5/31 才會開放，目前先保留選項，暫時不能許願或上傳喔～");
+  // 5/31 已開放，保留函式避免舊流程呼叫時中斷。
 }
 
 let flowerDex = JSON.parse(JSON.stringify(DEFAULT_FLOWER_DEX));
@@ -490,7 +488,7 @@ function findCatalogFlowerForWish(name) {
 function getWishFlowerBaseNameFromValue(value) {
   let text = String(value || "").trim();
   if (!text) return "";
-  ["隨意色", "混色", "黃色", "紅色", "藍色", "白色", "黃", "紅", "藍", "白"].forEach(function (prefix) {
+  ["隨意色", "隨機色", "混色", "黃色", "紅色", "藍色", "白色", "黃", "紅", "藍", "白"].forEach(function (prefix) {
     if (text.startsWith(prefix)) text = text.slice(prefix.length).trim();
   });
   return text;
@@ -498,6 +496,7 @@ function getWishFlowerBaseNameFromValue(value) {
 
 function isCatalogWishFlowerValue(value) {
   const baseName = getWishFlowerBaseNameFromValue(value);
+  if (baseName === "風鈴草") return true;
   return !!findCatalogFlowerForWish(baseName);
 }
 
