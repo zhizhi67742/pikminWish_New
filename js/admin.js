@@ -23,6 +23,61 @@ const ADMIN_EMAILS = [
   "y0966621741@gmail.com"
 ];
 
+
+const DEFAULT_FLOWER_DEX = [
+  { name: "風鈴草", colors: ["白", "紅", "藍"] },
+  { name: "勿忘草", colors: ["白", "黃", "紅", "藍"] },
+  { name: "週年玫瑰", colors: ["白", "黃", "紅", "藍"] },
+  { name: "銀蓮花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "九重葛", colors: ["白", "黃", "紅", "藍"] },
+  { name: "海芋", colors: ["白", "黃", "紅", "藍"] },
+  { name: "山茶花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "油菜花", colors: ["白", "黃", "藍"] },
+  { name: "康乃馨", colors: ["白", "黃", "紅", "藍"] },
+  { name: "嘉德麗雅蘭", colors: ["白", "黃", "紅", "藍"] },
+  { name: "雞冠花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "櫻花", colors: ["白"] },
+  { name: "菊花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "鐵線蓮", colors: ["白", "黃", "紅", "藍"] },
+  { name: "彼岸花", colors: ["白", "黃", "紅"] },
+  { name: "鈴蘭", colors: ["白", "紅"] },
+  { name: "大波斯菊", colors: ["白", "黃", "紅"] },
+  { name: "兔耳花", colors: ["白", "紅", "藍"] },
+  { name: "大理花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "石竹", colors: ["白", "紅", "藍"] },
+  { name: "小蒼蘭", colors: ["白", "黃", "紅", "藍"] },
+  { name: "龍膽", colors: ["白", "紅", "藍"] },
+  { name: "聖誕玫瑰", colors: ["白", "黃", "紅", "藍"] },
+  { name: "扶桑花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "風信子", colors: ["白", "黃", "紅", "藍"] },
+  { name: "繡球花", colors: ["白", "紅", "藍"] },
+  { name: "鳶尾花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "百合", colors: ["白", "黃", "紅"] },
+  { name: "萬壽菊", colors: ["白", "黃", "紅"] },
+  { name: "牽牛花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "蝴蝶蘭", colors: ["白", "黃", "紅", "藍"] },
+  { name: "水仙花", colors: ["白", "黃"] },
+  { name: "粉蝶花", colors: ["藍"] },
+  { name: "睡蓮", colors: ["白", "黃", "紅", "藍"] },
+  { name: "三色堇", colors: ["白", "黃", "紅", "藍"] },
+  { name: "牡丹", colors: ["白", "黃", "紅", "藍"] },
+  { name: "矮牽牛", colors: ["白", "黃", "紅", "藍"] },
+  { name: "梅花", colors: ["白", "黃", "紅"] },
+  { name: "雞蛋花", colors: ["白", "黃", "紅"] },
+  { name: "聖誕紅", colors: ["白", "黃", "紅", "藍"] },
+  { name: "櫻草花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "玫瑰", colors: ["白", "黃", "紅", "藍"] },
+  { name: "鼠尾草", colors: ["白", "黃", "紅", "藍"] },
+  { name: "金魚草", colors: ["白", "黃", "紅", "藍"] },
+  { name: "雪花蓮", colors: ["白", "黃", "紅"] },
+  { name: "天堂鳥", colors: ["白", "黃", "紅"] },
+  { name: "向日葵", colors: ["黃"] },
+  { name: "豌豆花", colors: ["白", "黃", "紅", "藍"] },
+  { name: "鬱金香", colors: ["白", "黃", "紅", "藍"] },
+  { name: "鸚鵡鬱金香", colors: ["白", "黃", "紅", "藍"] }
+];
+
+
 const firebaseConfig = {
   apiKey: "AIzaSyAVMgid570CLZDQTPzhx2jQjatg62inRcY",
   authDomain: "pikminwish.firebaseapp.com",
@@ -252,45 +307,131 @@ function statusLabel(status) {
   return value;
 }
 
+function getDefaultFlowerOrder(name) {
+  const index = DEFAULT_FLOWER_DEX.findIndex((flower) => normalizeCatalogName(flower.name) === normalizeCatalogName(name));
+  return index >= 0 ? index : 9999;
+}
+
+function getFlowerSortOrder(item) {
+  const value = item?.data?.sortOrder;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const asNumber = Number(value);
+  if (Number.isFinite(asNumber)) return asNumber;
+  return getDefaultFlowerOrder(item?.data?.name || item?.id);
+}
+
+function buildAllFlowerItems() {
+  const map = new Map();
+  DEFAULT_FLOWER_DEX.forEach((flower, index) => {
+    const id = makeFlowerDocId(flower.name);
+    map.set(normalizeCatalogName(flower.name), {
+      id,
+      isBuiltIn: true,
+      data: {
+        name: flower.name,
+        colors: flower.colors,
+        locked: false,
+        sortOrder: index
+      }
+    });
+  });
+
+  customFlowerDocs.forEach((entry) => {
+    const data = entry.data || {};
+    const name = data.name || decodeURIComponent(entry.id || "");
+    const key = normalizeCatalogName(name);
+    const existed = map.get(key);
+    map.set(key, {
+      id: entry.id || makeFlowerDocId(name),
+      isBuiltIn: !!existed,
+      data: Object.assign({}, existed?.data || {}, data, { name })
+    });
+  });
+
+  return Array.from(map.values()).sort((a, b) => {
+    const orderDiff = getFlowerSortOrder(a) - getFlowerSortOrder(b);
+    if (orderDiff) return orderDiff;
+    return String(a.data?.name || "").localeCompare(String(b.data?.name || ""), "zh-Hant");
+  });
+}
+
 function renderCustomFlowers() {
   const list = $("customFlowerList");
   const count = $("customFlowerCount");
-  if (count) count.textContent = String(customFlowerDocs.length);
+  const items = buildAllFlowerItems();
+  if (count) count.textContent = String(items.length);
   if (!list) return;
 
-  const items = customFlowerDocs
-    .slice()
-    .sort((a, b) => ((a.data?.sortOrder ?? 9999) - (b.data?.sortOrder ?? 9999)) || String(a.data?.name || "").localeCompare(String(b.data?.name || ""), "zh-Hant"));
-
   if (!items.length) {
-    list.innerHTML = '<div class="empty">目前沒有自訂花種。新增後會出現在這裡。</div>';
+    list.innerHTML = '<div class="empty">目前沒有花種。</div>';
     return;
   }
 
-  list.innerHTML = items.map(({ id, data }) => {
+  list.innerHTML = items.map(({ id, data, isBuiltIn }, index) => {
     const colors = Array.isArray(data.colors) ? data.colors.join("、") : "-";
     const locked = data.locked ? "已鎖定" : "可許願";
+    const sourceLabel = isBuiltIn ? "內建花種" : "自訂花種";
+    const disabledUp = index === 0 ? "disabled" : "";
+    const disabledDown = index === items.length - 1 ? "disabled" : "";
     return `
       <article class="admin-item flower-admin-item">
-        <div class="item-top">
-          <div>
-            <div class="item-title">${escapeHtml(data.name || id)}</div>
-            <div class="item-subtitle">${escapeHtml(data.subtitle || "")}</div>
+        <div class="flower-sort-row">
+          <div class="sort-number">${index + 1}</div>
+          <div class="flower-main-content">
+            <div class="item-top">
+              <div>
+                <div class="item-title">${escapeHtml(data.name || id)}</div>
+                <div class="item-subtitle">${escapeHtml(data.subtitle || sourceLabel)}</div>
+              </div>
+              <span class="badge">${escapeHtml(locked)}</span>
+            </div>
+            <div class="meta-grid">
+              <div><b>顏色：</b>${escapeHtml(colors)}</div>
+              <div><b>類型：</b>${escapeHtml(sourceLabel)}</div>
+            </div>
+            <div class="item-actions">
+              <button class="mini-btn sort-btn" data-action="move-flower" data-id="${escapeHtml(id)}" data-direction="up" type="button" ${disabledUp}>⬆️ 上移</button>
+              <button class="mini-btn sort-btn" data-action="move-flower" data-id="${escapeHtml(id)}" data-direction="down" type="button" ${disabledDown}>⬇️ 下移</button>
+              <button class="mini-btn" data-action="edit-flower" data-id="${escapeHtml(id)}" type="button">帶入表單</button>
+              ${isBuiltIn ? "" : `<button class="danger-btn mini-btn" data-action="delete-flower" data-id="${escapeHtml(id)}" type="button">刪除花種</button>`}
+            </div>
           </div>
-          <span class="badge">${escapeHtml(locked)}</span>
-        </div>
-        <div class="meta-grid">
-          <div><b>顏色：</b>${escapeHtml(colors)}</div>
-          <div><b>ID：</b>${escapeHtml(id)}</div>
-        </div>
-        <div class="item-actions">
-          <button class="mini-btn" data-action="edit-flower" data-id="${escapeHtml(id)}" type="button">帶入表單</button>
-          <button class="danger-btn mini-btn" data-action="delete-flower" data-id="${escapeHtml(id)}" type="button">刪除花種</button>
         </div>
       </article>
     `;
   }).join("");
 }
+
+async function saveFlowerOrder(items) {
+  const now = Date.now();
+  await Promise.all(items.map((item, index) => {
+    const data = item.data || {};
+    const name = data.name || decodeURIComponent(item.id || "");
+    const colors = Array.isArray(data.colors) && data.colors.length ? data.colors.map(normalizeFlowerColor).filter(Boolean) : ["白"];
+    return setDoc(doc(db, "flowerCatalog", makeFlowerDocId(name)), {
+      name,
+      colors,
+      subtitle: data.subtitle || "",
+      locked: !!data.locked,
+      source: item.isBuiltIn ? "built-in-order" : (data.source || "admin"),
+      sortOrder: index,
+      updatedAt: now,
+      updatedBy: currentUser?.email || ""
+    }, { merge: true });
+  }));
+}
+
+async function moveFlower(id, direction) {
+  const items = buildAllFlowerItems();
+  const currentIndex = items.findIndex((item) => item.id === id);
+  if (currentIndex < 0) return;
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= items.length) return;
+  const nextItems = items.slice();
+  [nextItems[currentIndex], nextItems[targetIndex]] = [nextItems[targetIndex], nextItems[currentIndex]];
+  await saveFlowerOrder(nextItems);
+}
+
 
 async function saveQuickFlower(event) {
   event.preventDefault();
@@ -313,6 +454,9 @@ async function saveQuickFlower(event) {
 
   const id = makeFlowerDocId(name);
   const now = Date.now();
+  const existingItem = buildAllFlowerItems().find((item) => normalizeCatalogName(item.data?.name) === normalizeCatalogName(name));
+  const currentItems = buildAllFlowerItems();
+  const nextSortOrder = existingItem ? getFlowerSortOrder(existingItem) : currentItems.length;
   await setDoc(doc(db, "flowerCatalog", id), {
     name,
     subtitle,
@@ -321,6 +465,7 @@ async function saveQuickFlower(event) {
     source: "admin",
     createdAt: now,
     customAddedAt: now,
+    sortOrder: nextSortOrder,
     updatedAt: now,
     updatedBy: currentUser.email || ""
   }, { merge: true });
@@ -332,7 +477,7 @@ async function saveQuickFlower(event) {
 }
 
 function fillQuickFlowerForm(id) {
-  const item = customFlowerDocs.find((entry) => entry.id === id);
+  const item = buildAllFlowerItems().find((entry) => entry.id === id);
   if (!item) return;
   const data = item.data || {};
   $("quickFlowerName").value = data.name || "";
@@ -346,7 +491,7 @@ function fillQuickFlowerForm(id) {
 }
 
 async function deleteCustomFlower(id) {
-  const item = customFlowerDocs.find((entry) => entry.id === id);
+  const item = buildAllFlowerItems().find((entry) => entry.id === id);
   const name = item?.data?.name || id;
   if (!confirm(`確定要刪除自訂花種「${name}」嗎？正式網站也會移除這個自訂選項。`)) return;
   await deleteDoc(doc(db, "flowerCatalog", id));
@@ -488,6 +633,7 @@ function setupEvents() {
       if (action === "delete-history") await deleteHistory(id);
       if (action === "edit-flower") fillQuickFlowerForm(id);
       if (action === "delete-flower") await deleteCustomFlower(id);
+      if (action === "move-flower") await moveFlower(id, button.dataset.direction);
     } catch (error) {
       console.error(error);
       alert("操作失敗，請檢查 Firebase Rules 或網路狀態。");

@@ -332,13 +332,28 @@ function getCatalogSortTime(flower) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function getDefaultCatalogOrder(name) {
+  const index = DEFAULT_FLOWER_DEX.findIndex(function (flower) {
+    return normalizeCatalogName(flower.name) === normalizeCatalogName(name);
+  });
+  return index >= 0 ? index : 9999;
+}
+
+function getCatalogSortOrder(flower) {
+  const value = flower && flower.sortOrder;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const asNumber = Number(value);
+  if (Number.isFinite(asNumber)) return asNumber;
+  return getDefaultCatalogOrder(flower && flower.name);
+}
+
 function rebuildFlowerDexFromSources() {
   const builtInFlowers = JSON.parse(JSON.stringify(DEFAULT_FLOWER_DEX));
   const customFlowers = [];
 
   (Array.isArray(cloudFlowerCatalog) ? cloudFlowerCatalog : [])
     .slice()
-    .sort(function (a, b) { return ((a.sortOrder ?? 9999) - (b.sortOrder ?? 9999)); })
+    .sort(function (a, b) { return getCatalogSortOrder(a) - getCatalogSortOrder(b); })
     .forEach(function (flower) {
       if (!flower || !flower.name) return;
 
@@ -351,6 +366,7 @@ function rebuildFlowerDexFromSources() {
           : ["白"],
         locked: normalizeCatalogName(rawCloudFlowerName) === "風鈴草" ? false : !!flower.locked,
         isCustomFlower: true,
+        sortOrder: getCatalogSortOrder(flower),
         customAddedAt: getCatalogSortTime(flower)
       };
 
@@ -365,7 +381,11 @@ function rebuildFlowerDexFromSources() {
       }
     });
 
-  flowerDex = customFlowers.concat(builtInFlowers);
+  flowerDex = customFlowers.concat(builtInFlowers).sort(function (a, b) {
+    const orderDiff = getCatalogSortOrder(a) - getCatalogSortOrder(b);
+    if (orderDiff) return orderDiff;
+    return String(a.name || "").localeCompare(String(b.name || ""), "zh-Hant");
+  });
 }
 
 function startFlowerCatalogListener() {
