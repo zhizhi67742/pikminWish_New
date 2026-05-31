@@ -46,6 +46,7 @@ let currentUser = null;
 let wishDocs = [];
 let historyDocs = [];
 let customFlowerDocs = [];
+let flowerOrderMode = false;
 let unsubscribeWishes = null;
 let unsubscribeHistory = null;
 let unsubscribeFlowers = null;
@@ -260,7 +261,7 @@ function renderCustomFlowers() {
 
   const items = customFlowerDocs
     .slice()
-    .sort((a, b) => getSortTime(b) - getSortTime(a) || String(a.data?.name || "").localeCompare(String(b.data?.name || ""), "zh-Hant"));
+    .sort((a, b) => ((a.data?.sortOrder ?? 99999) - (b.data?.sortOrder ?? 99999)) || String(a.data?.name || "").localeCompare(String(b.data?.name || ""), "zh-Hant"));
 
   if (!items.length) {
     list.innerHTML = '<div class="empty">目前沒有自訂花種。新增後會出現在這裡。</div>';
@@ -284,6 +285,8 @@ function renderCustomFlowers() {
           <div><b>ID：</b>${escapeHtml(id)}</div>
         </div>
         <div class="item-actions">
+          <button class="mini-btn" data-action="flower-up" data-id="${escapeHtml(id)}" type="button">⬆️</button>
+          <button class="mini-btn" data-action="flower-down" data-id="${escapeHtml(id)}" type="button">⬇️</button>
           <button class="mini-btn" data-action="edit-flower" data-id="${escapeHtml(id)}" type="button">帶入表單</button>
           <button class="danger-btn mini-btn" data-action="delete-flower" data-id="${escapeHtml(id)}" type="button">刪除花種</button>
         </div>
@@ -350,6 +353,23 @@ async function deleteCustomFlower(id) {
   const name = item?.data?.name || id;
   if (!confirm(`確定要刪除自訂花種「${name}」嗎？正式網站也會移除這個自訂選項。`)) return;
   await deleteDoc(doc(db, "flowerCatalog", id));
+}
+
+
+async function moveFlower(id, direction) {
+  const items = customFlowerDocs.slice().sort((a,b)=>((a.data?.sortOrder??99999)-(b.data?.sortOrder??99999)));
+  const index = items.findIndex(x=>x.id===id);
+  if(index<0) return;
+  const target=index+direction;
+  if(target<0 || target>=items.length) return;
+
+  const current=items[index];
+  const other=items[target];
+  const a=current.data?.sortOrder ?? index;
+  const b=other.data?.sortOrder ?? target;
+
+  await updateDoc(doc(db,"flowerCatalog",current.id),{sortOrder:b});
+  await updateDoc(doc(db,"flowerCatalog",other.id),{sortOrder:a});
 }
 
 function renderWishes() {
@@ -464,6 +484,7 @@ function setupEvents() {
   $("wishSearch").addEventListener("input", renderWishes);
   $("historySearch").addEventListener("input", renderHistory);
   $("quickFlowerForm").addEventListener("submit", saveQuickFlower);
+  $("flowerSortBtn")?.addEventListener("click",()=>alert("使用⬆️⬇️按鈕即可調整花種順序"));
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -487,6 +508,8 @@ function setupEvents() {
       if (action === "delete-wish") await deleteWish(id);
       if (action === "delete-history") await deleteHistory(id);
       if (action === "edit-flower") fillQuickFlowerForm(id);
+      if (action === "flower-up") await moveFlower(id,-1);
+      if (action === "flower-down") await moveFlower(id,1);
       if (action === "delete-flower") await deleteCustomFlower(id);
     } catch (error) {
       console.error(error);
