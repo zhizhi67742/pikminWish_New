@@ -338,7 +338,7 @@ function rebuildFlowerDexFromSources() {
 
   (Array.isArray(cloudFlowerCatalog) ? cloudFlowerCatalog : [])
     .slice()
-    .sort(function (a, b) { return getCatalogSortTime(b) - getCatalogSortTime(a); })
+    .sort(function (a, b) { return ((a.sortOrder ?? 9999) - (b.sortOrder ?? 9999)); })
     .forEach(function (flower) {
       if (!flower || !flower.name) return;
 
