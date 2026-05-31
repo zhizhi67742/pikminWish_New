@@ -321,7 +321,7 @@ function normalizeCatalogColor(color) {
 }
 
 function normalizeCatalogName(name) {
-  return String(name || "").trim().toLowerCase();
+  return String(name || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().toLowerCase();
 }
 
 function getCatalogSortTime(flower) {
@@ -342,13 +342,14 @@ function rebuildFlowerDexFromSources() {
     .forEach(function (flower) {
       if (!flower || !flower.name) return;
 
+      const rawCloudFlowerName = String(flower.name || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
       const cleanFlower = {
-        name: String(flower.name || "").trim(),
+        name: rawCloudFlowerName,
         subtitle: String(flower.subtitle || "").trim(),
         colors: Array.isArray(flower.colors) && flower.colors.length
           ? flower.colors.map(normalizeCatalogColor).filter(Boolean)
           : ["白"],
-        locked: !!flower.locked,
+        locked: normalizeCatalogName(rawCloudFlowerName) === "風鈴草" ? false : !!flower.locked,
         isCustomFlower: true,
         customAddedAt: getCatalogSortTime(flower)
       };
@@ -470,14 +471,15 @@ function getWishColorOptions(baseColors) {
 
 
 function findCatalogFlowerForWish(name) {
-  const key = String(name || "").trim().toLowerCase();
+  const key = normalizeCatalogName(name);
   if (!key) return null;
+  if (key === "風鈴草") return { name: "風鈴草", colors: ["白", "紅", "藍"], locked: false };
   const sources = [];
   try { if (Array.isArray(flowerDex)) sources.push(flowerDex); } catch (e) {}
   try { if (Array.isArray(DEFAULT_FLOWER_DEX)) sources.push(DEFAULT_FLOWER_DEX); } catch (e) {}
   for (const list of sources) {
     const found = list.find(function (flower) {
-      return String(flower && flower.name || "").trim().toLowerCase() === key;
+      return normalizeCatalogName(flower && flower.name) === key;
     });
     if (found) return found;
   }
@@ -486,8 +488,10 @@ function findCatalogFlowerForWish(name) {
 
 
 function getWishFlowerBaseNameFromValue(value) {
-  let text = String(value || "").trim();
+  let text = String(value || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
   if (!text) return "";
+  // 若選單顯示文字或舊資料帶入「花名（副標）」也能正確回推花名。
+  text = text.replace(/（.*?）|\(.*?\)/g, "").trim();
   ["隨意色", "隨機色", "混色", "黃色", "紅色", "藍色", "白色", "黃", "紅", "藍", "白"].forEach(function (prefix) {
     if (text.startsWith(prefix)) text = text.slice(prefix.length).trim();
   });
@@ -507,6 +511,22 @@ function warnChooseCatalogFlower() {
 function getCurrentWishFlowerName() {
   const input = document.getElementById("flowerComboInput") || document.getElementById("flowerKeywordInput");
   return input ? input.value.trim() : "";
+}
+
+function getResolvedWishFlowerValue() {
+  const hiddenInput = document.getElementById("flowerInput");
+  const hiddenValue = hiddenInput ? hiddenInput.value.trim() : "";
+  if (hiddenValue && isCatalogWishFlowerValue(hiddenValue)) return hiddenValue;
+
+  const typedFlowerName = getCurrentWishFlowerName();
+  const catalogFlower = findCatalogFlowerForWish(typedFlowerName);
+  if (!catalogFlower || isLockedFlowerName(typedFlowerName)) return hiddenValue;
+
+  const colorSelect = document.getElementById("flowerColorSelect");
+  const color = colorSelect && colorSelect.style.display !== "none" ? normalizeWishColorValue(colorSelect.value) : "";
+  const resolvedValue = color ? buildWishFlowerName(color, catalogFlower.name) : catalogFlower.name;
+  if (hiddenInput) hiddenInput.value = resolvedValue;
+  return resolvedValue;
 }
 
 function shouldShowWishSpecialColors(flowerName) {
@@ -979,7 +999,7 @@ function askRepeatWishIfNeeded(flower, nickname) {
 }
 
 async function addWish() {
-  const flower = document.getElementById("flowerInput").value.trim();
+  const flower = getResolvedWishFlowerValue();
   const message = document.getElementById("messageInput").value.trim();
 
   nickname = getCurrentNickname();
@@ -3413,7 +3433,7 @@ async function startFirebaseSync() {
   const originalAddWish = window.addWish;
 
   window.addWish = async function () {
-    const flower = document.getElementById("flowerInput")?.value?.trim();
+    const flower = getResolvedWishFlowerValue();
     const nickname = getCurrentNickname();
 
     if (!guardWishSubmitCooldown()) return;
@@ -4114,7 +4134,7 @@ window.updateCurrentNicknameBar = updateCurrentNicknameBar;
 /* ===== DEPLOY FIX: 花種同一格輸入＋下拉，修正上傳後選單被擋/沒顯示 ===== */
 (function () {
   function normalizeFlowerText(value) {
-    return String(value || "").trim().toLowerCase();
+    return String(value || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().toLowerCase();
   }
 
   function getFlowerSourceList() {
