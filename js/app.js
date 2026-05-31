@@ -245,7 +245,7 @@ function setLikedDoneKey(doneKey, liked) {
 }
 
 const DEFAULT_FLOWER_DEX = [
-  { name: "風鈴草", subtitle: "6月新花・目前無法獲得", colors: ["白", "紅", "藍"], locked: true },
+  { name: "風鈴草", colors: ["白", "紅", "藍"] },
   { name: "勿忘草", colors: ["白", "黃", "紅", "藍"] },
   { name: "週年玫瑰", colors: ["白", "黃", "紅", "藍"] },
   { name: "銀蓮花", colors: ["白", "黃", "紅", "藍"] },
