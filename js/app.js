@@ -3338,7 +3338,43 @@ window.addEventListener("load", function () {
    Firebase 即時同步系統
 ========================= */
 
+
+function applyEventBannerSettings(data) {
+  const banner = document.getElementById("eventBanner");
+  if (!banner) return;
+  const settings = Object.assign({
+    enabled: true,
+    badge: "🌼 5月新花",
+    title: "勿忘草登場",
+    text: "本月活動花種，記得更新你的圖鑑庫存！"
+  }, data || {});
+  banner.hidden = settings.enabled === false;
+  const badge = document.getElementById("eventBannerBadge");
+  const title = document.getElementById("eventBannerTitle");
+  const text = document.getElementById("eventBannerText");
+  if (badge) badge.textContent = settings.badge || "🌼 新花公告";
+  if (title) title.textContent = settings.title || "活動花種登場";
+  if (text) text.textContent = settings.text || "";
+}
+
+function startEventBannerSync() {
+  if (!window.firebaseDB || !window.firebaseFns || !window.firebaseFns.onSnapshot || !window.firebaseFns.doc) return;
+  try {
+    const ref = window.firebaseFns.doc(window.firebaseDB, "siteSettings", "eventBanner");
+    window.firebaseFns.onSnapshot(ref, (snap) => {
+      applyEventBannerSettings(snap.exists() ? snap.data() : null);
+    }, (error) => {
+      console.error("活動公告讀取失敗", error);
+      applyEventBannerSettings(null);
+    });
+  } catch (error) {
+    console.error("活動公告同步失敗", error);
+    applyEventBannerSettings(null);
+  }
+}
+
 window.addEventListener("firebase-ready", () => {
+  startEventBannerSync();
   startFirebaseSync();
 });
 

@@ -50,6 +50,8 @@ let customFlowerDocs = [];
 let unsubscribeWishes = null;
 let unsubscribeHistory = null;
 let unsubscribeFlowers = null;
+let unsubscribeEventBanner = null;
+let eventBannerSettings = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -248,21 +250,35 @@ function startAdminListeners() {
       alert("讀取自訂花種失敗，請檢查 Firebase Rules。");
     });
   }
+
+  if (!unsubscribeEventBanner) {
+    unsubscribeEventBanner = onSnapshot(doc(db, "siteSettings", "eventBanner"), (docSnap) => {
+      eventBannerSettings = docSnap.exists() ? docSnap.data() : null;
+      renderEventBannerForm();
+    }, (error) => {
+      console.error(error);
+      alert("讀取活動公告失敗，請檢查 Firebase Rules。");
+    });
+  }
 }
 
 function stopAdminListeners() {
   if (unsubscribeWishes) unsubscribeWishes();
   if (unsubscribeHistory) unsubscribeHistory();
   if (unsubscribeFlowers) unsubscribeFlowers();
+  if (unsubscribeEventBanner) unsubscribeEventBanner();
   unsubscribeWishes = null;
   unsubscribeHistory = null;
   unsubscribeFlowers = null;
+  unsubscribeEventBanner = null;
   wishDocs = [];
   historyDocs = [];
   customFlowerDocs = [];
+  eventBannerSettings = null;
   renderWishes();
   renderHistory();
   renderCustomFlowers();
+  renderEventBannerForm();
 }
 
 function wishMatchesSearch(item, keyword) {
@@ -500,6 +516,51 @@ async function deleteCustomFlower(id) {
   await deleteDoc(doc(db, "flowerCatalog", id));
 }
 
+function getDefaultEventBannerSettings() {
+  return {
+    enabled: true,
+    badge: "🌼 5月新花",
+    title: "勿忘草登場",
+    text: "本月活動花種，記得更新你的圖鑑庫存！"
+  };
+}
+
+function renderEventBannerForm() {
+  const form = $("eventBannerForm");
+  if (!form) return;
+  const data = Object.assign(getDefaultEventBannerSettings(), eventBannerSettings || {});
+  const enabled = $("eventBannerEnabled");
+  const badge = $("eventBannerBadgeInput");
+  const title = $("eventBannerTitleInput");
+  const text = $("eventBannerTextInput");
+  const notice = $("eventBannerNotice");
+  if (enabled) enabled.checked = data.enabled !== false;
+  if (badge) badge.value = data.badge || "";
+  if (title) title.value = data.title || "";
+  if (text) text.value = data.text || "";
+  if (notice) notice.textContent = eventBannerSettings ? "目前已讀取線上活動公告。" : "目前使用預設公告，儲存後會同步到正式網站。";
+}
+
+async function saveEventBanner(event) {
+  event.preventDefault();
+  if (!currentUser || !isAdmin(currentUser)) return;
+  const enabled = !!$("eventBannerEnabled")?.checked;
+  const badge = $("eventBannerBadgeInput")?.value.trim() || "🌼 新花公告";
+  const title = $("eventBannerTitleInput")?.value.trim() || "活動花種登場";
+  const text = $("eventBannerTextInput")?.value.trim() || "本月活動花種，記得更新你的圖鑑庫存！";
+  await setDoc(doc(db, "siteSettings", "eventBanner"), {
+    enabled,
+    badge,
+    title,
+    text,
+    updatedAt: Date.now(),
+    updatedBy: currentUser.email || ""
+  }, { merge: true });
+  const notice = $("eventBannerNotice");
+  if (notice) notice.textContent = "已儲存，正式網站會自動更新。";
+  alert("活動公告已儲存。");
+}
+
 function renderWishes() {
   const list = $("wishList");
   const keyword = normalize($("wishSearch")?.value);
@@ -612,6 +673,7 @@ function setupEvents() {
   $("wishSearch").addEventListener("input", renderWishes);
   $("historySearch").addEventListener("input", renderHistory);
   $("quickFlowerForm").addEventListener("submit", saveQuickFlower);
+  $("eventBannerForm")?.addEventListener("submit", saveEventBanner);
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
