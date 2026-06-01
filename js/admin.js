@@ -47,11 +47,11 @@ let currentUser = null;
 let wishDocs = [];
 let historyDocs = [];
 let customFlowerDocs = [];
+let eventBannerSettings = null;
+let unsubscribeEventBanner = null;
 let unsubscribeWishes = null;
 let unsubscribeHistory = null;
 let unsubscribeFlowers = null;
-let unsubscribeEventBanner = null;
-let eventBannerSettings = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -250,35 +250,21 @@ function startAdminListeners() {
       alert("讀取自訂花種失敗，請檢查 Firebase Rules。");
     });
   }
-
-  if (!unsubscribeEventBanner) {
-    unsubscribeEventBanner = onSnapshot(doc(db, "siteSettings", "eventBanner"), (docSnap) => {
-      eventBannerSettings = docSnap.exists() ? docSnap.data() : null;
-      renderEventBannerForm();
-    }, (error) => {
-      console.error(error);
-      alert("讀取活動公告失敗，請檢查 Firebase Rules。");
-    });
-  }
 }
 
 function stopAdminListeners() {
   if (unsubscribeWishes) unsubscribeWishes();
   if (unsubscribeHistory) unsubscribeHistory();
   if (unsubscribeFlowers) unsubscribeFlowers();
-  if (unsubscribeEventBanner) unsubscribeEventBanner();
   unsubscribeWishes = null;
   unsubscribeHistory = null;
   unsubscribeFlowers = null;
-  unsubscribeEventBanner = null;
   wishDocs = [];
   historyDocs = [];
   customFlowerDocs = [];
-  eventBannerSettings = null;
   renderWishes();
   renderHistory();
   renderCustomFlowers();
-  renderEventBannerForm();
 }
 
 function wishMatchesSearch(item, keyword) {
@@ -541,6 +527,17 @@ function renderEventBannerForm() {
   if (notice) notice.textContent = eventBannerSettings ? "目前已讀取線上活動公告。" : "目前使用預設公告，儲存後會同步到正式網站。";
 }
 
+function listenEventBannerSettings() {
+  if (unsubscribeEventBanner) unsubscribeEventBanner();
+  unsubscribeEventBanner = onSnapshot(doc(db, "siteSettings", "eventBanner"), (docSnap) => {
+    eventBannerSettings = docSnap.exists() ? docSnap.data() : null;
+    renderEventBannerForm();
+  }, (error) => {
+    console.error("讀取活動公告失敗", error);
+    renderEventBannerForm();
+  });
+}
+
 async function saveEventBanner(event) {
   event.preventDefault();
   if (!currentUser || !isAdmin(currentUser)) return;
@@ -549,12 +546,7 @@ async function saveEventBanner(event) {
   const title = $("eventBannerTitleInput")?.value.trim() || "活動花種登場";
   const text = $("eventBannerTextInput")?.value.trim() || "本月活動花種，記得更新你的圖鑑庫存！";
   await setDoc(doc(db, "siteSettings", "eventBanner"), {
-    enabled,
-    badge,
-    title,
-    text,
-    updatedAt: Date.now(),
-    updatedBy: currentUser.email || ""
+    enabled, badge, title, text, updatedAt: Date.now(), updatedBy: currentUser.email || ""
   }, { merge: true });
   const notice = $("eventBannerNotice");
   if (notice) notice.textContent = "已儲存，正式網站會自動更新。";
@@ -673,7 +665,6 @@ function setupEvents() {
   $("wishSearch").addEventListener("input", renderWishes);
   $("historySearch").addEventListener("input", renderHistory);
   $("quickFlowerForm").addEventListener("submit", saveQuickFlower);
-  $("eventBannerForm")?.addEventListener("submit", saveEventBanner);
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
