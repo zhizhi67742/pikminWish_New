@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PikminWish 管理後台</title>
-  <link rel="stylesheet" href="css/admin.css?v=flower-order-20260601" />
+  <link rel="stylesheet" href="css/admin.css?v=flower-sort-visible-20260601" />
 </head>
 <body>
 <div class="admin-bg"></div>
@@ -67,7 +67,7 @@
         <div class="card-head">
           <div>
             <h2>花種管理 / 排序</h2>
-            <p>這裡會顯示全部花種，可用上移、下移調整正式網站顯示順序。</p>
+            <p>這裡會顯示全部花種，可以用上移／下移調整正式網站顯示順序。</p>
           </div>
         </div>
 
@@ -94,8 +94,9 @@
           <button class="main-btn" type="submit">新增 / 更新花種</button>
         </form>
 
-        <p class="small-note">提醒：排序會同步到正式網站的圖鑑與許願花種選單；許願單仍會自動隱藏白色，兩色以上會自動出現混色、隨意色。</p>
-        <div id="customFlowerList" class="admin-list flower-admin-list"></div>
+        <p class="small-note">提醒：排序會同步到正式網站；許願單仍會自動隱藏白色，兩色以上會自動出現混色、隨意色。</p>
+        <div id="flowerSortNotice" class="small-note"></div>
+        <div id="customFlowerList" class="admin-list flower-admin-list flower-sort-list"></div>
       </section>
 
       <section id="wishesTab" class="glass-card data-card" data-tab-panel="wishes" hidden>
@@ -122,6 +123,6 @@
     </section>
   </main>
 
-  <script type="module" src="js/admin.js?v=flower-order-20260601"></script>
+  <script type="module" src="js/admin.js?v=flower-sort-visible-20260601"></script>
 </body>
 </html>

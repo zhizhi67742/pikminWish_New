@@ -14,6 +14,7 @@ import {
   deleteDoc,
   setDoc,
   updateDoc,
+  writeBatch,
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
@@ -23,6 +24,47 @@ const ADMIN_EMAILS = [
   "y0966621741@gmail.com"
 ];
 
+const firebaseConfig = {
+  apiKey: "AIzaSyAVMgid570CLZDQTPzhx2jQjatg62inRcY",
+  authDomain: "pikminwish.firebaseapp.com",
+  databaseURL: "https://pikminwish-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "pikminwish",
+  storageBucket: "pikminwish.firebasestorage.app",
+  messagingSenderId: "823415386805",
+  appId: "1:823415386805:web:a8cd25fcb88100619144fc",
+  measurementId: "G-62WR9TP8QT"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+getRedirectResult(auth).catch((error) => {
+  console.error("Google redirect 登入結果讀取失敗", error);
+});
+
+let currentUser = null;
+let wishDocs = [];
+let historyDocs = [];
+let customFlowerDocs = [];
+let unsubscribeWishes = null;
+let unsubscribeHistory = null;
+let unsubscribeFlowers = null;
+
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function normalize(value) {
+  return String(value || "").trim().toLowerCase();
+}
 
 const DEFAULT_FLOWER_DEX = [
   { name: "風鈴草", colors: ["白", "紅", "藍"] },
@@ -76,49 +118,6 @@ const DEFAULT_FLOWER_DEX = [
   { name: "鬱金香", colors: ["白", "黃", "紅", "藍"] },
   { name: "鸚鵡鬱金香", colors: ["白", "黃", "紅", "藍"] }
 ];
-
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAVMgid570CLZDQTPzhx2jQjatg62inRcY",
-  authDomain: "pikminwish.firebaseapp.com",
-  databaseURL: "https://pikminwish-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "pikminwish",
-  storageBucket: "pikminwish.firebasestorage.app",
-  messagingSenderId: "823415386805",
-  appId: "1:823415386805:web:a8cd25fcb88100619144fc",
-  measurementId: "G-62WR9TP8QT"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-getRedirectResult(auth).catch((error) => {
-  console.error("Google redirect 登入結果讀取失敗", error);
-});
-
-let currentUser = null;
-let wishDocs = [];
-let historyDocs = [];
-let customFlowerDocs = [];
-let unsubscribeWishes = null;
-let unsubscribeHistory = null;
-let unsubscribeFlowers = null;
-
-const $ = (id) => document.getElementById(id);
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function normalize(value) {
-  return String(value || "").trim().toLowerCase();
-}
 function makeFlowerDocId(name) {
   return encodeURIComponent(String(name || "").trim()).replaceAll("/", "%2F");
 }
@@ -307,49 +306,52 @@ function statusLabel(status) {
   return value;
 }
 
-function getDefaultFlowerOrder(name) {
-  const index = DEFAULT_FLOWER_DEX.findIndex((flower) => normalizeCatalogName(flower.name) === normalizeCatalogName(name));
-  return index >= 0 ? index : 9999;
-}
-
-function getFlowerSortOrder(item) {
-  const value = item?.data?.sortOrder;
+function getFlowerSortValue(data, fallbackIndex) {
+  const value = data && data.sortOrder;
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  const asNumber = Number(value);
-  if (Number.isFinite(asNumber)) return asNumber;
-  return getDefaultFlowerOrder(item?.data?.name || item?.id);
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallbackIndex;
 }
 
-function buildAllFlowerItems() {
-  const map = new Map();
-  DEFAULT_FLOWER_DEX.forEach((flower, index) => {
-    const id = makeFlowerDocId(flower.name);
-    map.set(normalizeCatalogName(flower.name), {
-      id,
-      isBuiltIn: true,
-      data: {
-        name: flower.name,
-        colors: flower.colors,
-        locked: false,
-        sortOrder: index
-      }
-    });
-  });
-
-  customFlowerDocs.forEach((entry) => {
+function getMergedFlowerItems() {
+  const cloudByName = new Map();
+  (Array.isArray(customFlowerDocs) ? customFlowerDocs : []).forEach((entry) => {
     const data = entry.data || {};
-    const name = data.name || decodeURIComponent(entry.id || "");
-    const key = normalizeCatalogName(name);
-    const existed = map.get(key);
-    map.set(key, {
-      id: entry.id || makeFlowerDocId(name),
-      isBuiltIn: !!existed,
-      data: Object.assign({}, existed?.data || {}, data, { name })
+    const key = normalize(data.name || decodeURIComponent(entry.id || ""));
+    if (!key) return;
+    cloudByName.set(key, entry);
+  });
+
+  const items = [];
+  DEFAULT_FLOWER_DEX.forEach((flower, index) => {
+    const key = normalize(flower.name);
+    const cloud = cloudByName.get(key);
+    const merged = Object.assign({}, flower, cloud?.data || {}, {
+      name: (cloud?.data?.name || flower.name),
+      colors: Array.isArray(cloud?.data?.colors) && cloud.data.colors.length ? cloud.data.colors : flower.colors,
+      source: cloud?.data?.source || "builtin",
+      isBuiltIn: true,
+      fallbackIndex: index
+    });
+    items.push({ id: cloud?.id || makeFlowerDocId(flower.name), data: merged });
+    cloudByName.delete(key);
+  });
+
+  Array.from(cloudByName.values()).forEach((entry, index) => {
+    const data = entry.data || {};
+    items.push({
+      id: entry.id,
+      data: Object.assign({}, data, {
+        name: data.name || decodeURIComponent(entry.id || ""),
+        source: data.source || "admin",
+        isBuiltIn: false,
+        fallbackIndex: DEFAULT_FLOWER_DEX.length + index
+      })
     });
   });
 
-  return Array.from(map.values()).sort((a, b) => {
-    const orderDiff = getFlowerSortOrder(a) - getFlowerSortOrder(b);
+  return items.sort((a, b) => {
+    const orderDiff = getFlowerSortValue(a.data, a.data.fallbackIndex) - getFlowerSortValue(b.data, b.data.fallbackIndex);
     if (orderDiff) return orderDiff;
     return String(a.data?.name || "").localeCompare(String(b.data?.name || ""), "zh-Hant");
   });
@@ -358,43 +360,45 @@ function buildAllFlowerItems() {
 function renderCustomFlowers() {
   const list = $("customFlowerList");
   const count = $("customFlowerCount");
-  const items = buildAllFlowerItems();
+  const notice = $("flowerSortNotice");
+  const items = getMergedFlowerItems();
   if (count) count.textContent = String(items.length);
+  if (notice) notice.textContent = items.length ? `目前共 ${items.length} 個花種。按「上移／下移」後會直接儲存。` : "";
   if (!list) return;
 
   if (!items.length) {
-    list.innerHTML = '<div class="empty">目前沒有花種。</div>';
+    list.innerHTML = '<div class="empty">目前沒有花種資料。</div>';
     return;
   }
 
-  list.innerHTML = items.map(({ id, data, isBuiltIn }, index) => {
+  list.innerHTML = items.map(({ id, data }, index) => {
     const colors = Array.isArray(data.colors) ? data.colors.join("、") : "-";
     const locked = data.locked ? "已鎖定" : "可許願";
-    const sourceLabel = isBuiltIn ? "內建花種" : "自訂花種";
-    const disabledUp = index === 0 ? "disabled" : "";
-    const disabledDown = index === items.length - 1 ? "disabled" : "";
+    const sourceLabel = data.isBuiltIn ? "內建花種" : "自訂花種";
+    const subtitle = data.subtitle ? `<div class="item-subtitle">${escapeHtml(data.subtitle)}</div>` : "";
+    const deleteButton = data.isBuiltIn
+      ? ""
+      : `<button class="danger-btn mini-btn" data-action="delete-flower" data-id="${escapeHtml(id)}" type="button">刪除花種</button>`;
     return `
-      <article class="admin-item flower-admin-item">
-        <div class="flower-sort-row">
-          <div class="sort-number">${index + 1}</div>
-          <div class="flower-main-content">
-            <div class="item-top">
-              <div>
-                <div class="item-title">${escapeHtml(data.name || id)}</div>
-                <div class="item-subtitle">${escapeHtml(data.subtitle || sourceLabel)}</div>
-              </div>
-              <span class="badge">${escapeHtml(locked)}</span>
+      <article class="admin-item flower-admin-item flower-sort-item">
+        <div class="sort-rank">${index + 1}</div>
+        <div class="flower-sort-main">
+          <div class="item-top">
+            <div>
+              <div class="item-title">${escapeHtml(data.name || id)}</div>
+              ${subtitle}
             </div>
-            <div class="meta-grid">
-              <div><b>顏色：</b>${escapeHtml(colors)}</div>
-              <div><b>類型：</b>${escapeHtml(sourceLabel)}</div>
-            </div>
-            <div class="item-actions">
-              <button class="mini-btn sort-btn" data-action="move-flower" data-id="${escapeHtml(id)}" data-direction="up" type="button" ${disabledUp}>⬆️ 上移</button>
-              <button class="mini-btn sort-btn" data-action="move-flower" data-id="${escapeHtml(id)}" data-direction="down" type="button" ${disabledDown}>⬇️ 下移</button>
-              <button class="mini-btn" data-action="edit-flower" data-id="${escapeHtml(id)}" type="button">帶入表單</button>
-              ${isBuiltIn ? "" : `<button class="danger-btn mini-btn" data-action="delete-flower" data-id="${escapeHtml(id)}" type="button">刪除花種</button>`}
-            </div>
+            <span class="badge">${escapeHtml(sourceLabel)} · ${escapeHtml(locked)}</span>
+          </div>
+          <div class="meta-grid">
+            <div><b>顏色：</b>${escapeHtml(colors)}</div>
+            <div><b>ID：</b>${escapeHtml(id)}</div>
+          </div>
+          <div class="item-actions">
+            <button class="mini-btn" data-action="move-flower" data-id="${escapeHtml(id)}" data-direction="up" type="button" ${index === 0 ? "disabled" : ""}>⬆️ 上移</button>
+            <button class="mini-btn" data-action="move-flower" data-id="${escapeHtml(id)}" data-direction="down" type="button" ${index === items.length - 1 ? "disabled" : ""}>⬇️ 下移</button>
+            <button class="mini-btn" data-action="edit-flower" data-id="${escapeHtml(id)}" type="button">帶入表單</button>
+            ${deleteButton}
           </div>
         </div>
       </article>
@@ -402,36 +406,38 @@ function renderCustomFlowers() {
   }).join("");
 }
 
-async function saveFlowerOrder(items) {
-  const now = Date.now();
-  await Promise.all(items.map((item, index) => {
+async function persistFlowerOrder(items) {
+  if (!currentUser || !isAdmin(currentUser)) return;
+  const batch = writeBatch(db);
+  items.forEach((item, index) => {
     const data = item.data || {};
     const name = data.name || decodeURIComponent(item.id || "");
-    const colors = Array.isArray(data.colors) && data.colors.length ? data.colors.map(normalizeFlowerColor).filter(Boolean) : ["白"];
-    return setDoc(doc(db, "flowerCatalog", makeFlowerDocId(name)), {
+    if (!name) return;
+    const id = makeFlowerDocId(name);
+    batch.set(doc(db, "flowerCatalog", id), {
       name,
-      colors,
+      colors: Array.isArray(data.colors) && data.colors.length ? data.colors : ["白"],
       subtitle: data.subtitle || "",
       locked: !!data.locked,
-      source: item.isBuiltIn ? "built-in-order" : (data.source || "admin"),
+      source: data.source || (data.isBuiltIn ? "builtin" : "admin"),
       sortOrder: index,
-      updatedAt: now,
-      updatedBy: currentUser?.email || ""
+      updatedAt: Date.now(),
+      updatedBy: currentUser.email || ""
     }, { merge: true });
-  }));
+  });
+  await batch.commit();
 }
 
 async function moveFlower(id, direction) {
-  const items = buildAllFlowerItems();
-  const currentIndex = items.findIndex((item) => item.id === id);
-  if (currentIndex < 0) return;
-  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  const items = getMergedFlowerItems();
+  const index = items.findIndex((item) => item.id === id);
+  if (index < 0) return;
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
   if (targetIndex < 0 || targetIndex >= items.length) return;
-  const nextItems = items.slice();
-  [nextItems[currentIndex], nextItems[targetIndex]] = [nextItems[targetIndex], nextItems[currentIndex]];
-  await saveFlowerOrder(nextItems);
+  const next = items.slice();
+  [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+  await persistFlowerOrder(next);
 }
-
 
 async function saveQuickFlower(event) {
   event.preventDefault();
@@ -454,9 +460,6 @@ async function saveQuickFlower(event) {
 
   const id = makeFlowerDocId(name);
   const now = Date.now();
-  const existingItem = buildAllFlowerItems().find((item) => normalizeCatalogName(item.data?.name) === normalizeCatalogName(name));
-  const currentItems = buildAllFlowerItems();
-  const nextSortOrder = existingItem ? getFlowerSortOrder(existingItem) : currentItems.length;
   await setDoc(doc(db, "flowerCatalog", id), {
     name,
     subtitle,
@@ -465,7 +468,7 @@ async function saveQuickFlower(event) {
     source: "admin",
     createdAt: now,
     customAddedAt: now,
-    sortOrder: nextSortOrder,
+    sortOrder: getMergedFlowerItems().length,
     updatedAt: now,
     updatedBy: currentUser.email || ""
   }, { merge: true });
@@ -477,7 +480,7 @@ async function saveQuickFlower(event) {
 }
 
 function fillQuickFlowerForm(id) {
-  const item = buildAllFlowerItems().find((entry) => entry.id === id);
+  const item = getMergedFlowerItems().find((entry) => entry.id === id);
   if (!item) return;
   const data = item.data || {};
   $("quickFlowerName").value = data.name || "";
@@ -491,7 +494,7 @@ function fillQuickFlowerForm(id) {
 }
 
 async function deleteCustomFlower(id) {
-  const item = buildAllFlowerItems().find((entry) => entry.id === id);
+  const item = getMergedFlowerItems().find((entry) => entry.id === id);
   const name = item?.data?.name || id;
   if (!confirm(`確定要刪除自訂花種「${name}」嗎？正式網站也會移除這個自訂選項。`)) return;
   await deleteDoc(doc(db, "flowerCatalog", id));

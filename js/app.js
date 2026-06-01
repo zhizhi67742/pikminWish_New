@@ -325,26 +325,18 @@ function normalizeCatalogName(name) {
 }
 
 function getCatalogSortTime(flower) {
-  const value = flower && (flower.createdAt || flower.customAddedAt || flower.updatedAt || flower.createdAtSort);
+  const value = flower && (flower.sortOrder ?? flower.createdAt ?? flower.customAddedAt ?? flower.updatedAt ?? flower.createdAtSort);
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value?.toDate === "function") return value.toDate().getTime();
   const parsed = new Date(value || 0).getTime();
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-function getDefaultCatalogOrder(name) {
-  const index = DEFAULT_FLOWER_DEX.findIndex(function (flower) {
-    return normalizeCatalogName(flower.name) === normalizeCatalogName(name);
-  });
-  return index >= 0 ? index : 9999;
-}
-
-function getCatalogSortOrder(flower) {
+function getCatalogOrderValue(flower, fallbackIndex) {
   const value = flower && flower.sortOrder;
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  const asNumber = Number(value);
-  if (Number.isFinite(asNumber)) return asNumber;
-  return getDefaultCatalogOrder(flower && flower.name);
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallbackIndex;
 }
 
 function rebuildFlowerDexFromSources() {
@@ -353,7 +345,7 @@ function rebuildFlowerDexFromSources() {
 
   (Array.isArray(cloudFlowerCatalog) ? cloudFlowerCatalog : [])
     .slice()
-    .sort(function (a, b) { return getCatalogSortOrder(a) - getCatalogSortOrder(b); })
+    .sort(function (a, b) { return getCatalogOrderValue(a, 9999) - getCatalogOrderValue(b, 9999); })
     .forEach(function (flower) {
       if (!flower || !flower.name) return;
 
@@ -365,8 +357,8 @@ function rebuildFlowerDexFromSources() {
           ? flower.colors.map(normalizeCatalogColor).filter(Boolean)
           : ["白"],
         locked: normalizeCatalogName(rawCloudFlowerName) === "風鈴草" ? false : !!flower.locked,
-        isCustomFlower: true,
-        sortOrder: getCatalogSortOrder(flower),
+        isCustomFlower: flower.source !== "builtin",
+        sortOrder: getCatalogOrderValue(flower, 9999),
         customAddedAt: getCatalogSortTime(flower)
       };
 
@@ -382,9 +374,11 @@ function rebuildFlowerDexFromSources() {
     });
 
   flowerDex = customFlowers.concat(builtInFlowers).sort(function (a, b) {
-    const orderDiff = getCatalogSortOrder(a) - getCatalogSortOrder(b);
-    if (orderDiff) return orderDiff;
-    return String(a.name || "").localeCompare(String(b.name || ""), "zh-Hant");
+    const ai = DEFAULT_FLOWER_DEX.findIndex(function (item) { return normalizeCatalogName(item.name) === normalizeCatalogName(a.name); });
+    const bi = DEFAULT_FLOWER_DEX.findIndex(function (item) { return normalizeCatalogName(item.name) === normalizeCatalogName(b.name); });
+    const af = ai >= 0 ? ai : DEFAULT_FLOWER_DEX.length + 999;
+    const bf = bi >= 0 ? bi : DEFAULT_FLOWER_DEX.length + 999;
+    return getCatalogOrderValue(a, af) - getCatalogOrderValue(b, bf);
   });
 }
 
