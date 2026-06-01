@@ -4651,9 +4651,15 @@ function applyEventBannerSettings(data) {
   if (text) text.textContent = settings.text || "";
 }
 
+let eventBannerListenStarted = false;
 function listenEventBannerSettings() {
   try {
-    if (!window.firebaseFns || !window.firebaseDB) return;
+    if (eventBannerListenStarted) return;
+    if (!window.firebaseFns || !window.firebaseDB || !window.firebaseFns.doc || !window.firebaseFns.onSnapshot) {
+      setTimeout(listenEventBannerSettings, 300);
+      return;
+    }
+    eventBannerListenStarted = true;
     const ref = window.firebaseFns.doc(window.firebaseDB, "siteSettings", "eventBanner");
     window.firebaseFns.onSnapshot(ref, (docSnap) => {
       applyEventBannerSettings(docSnap.exists() ? docSnap.data() : null);
@@ -4667,4 +4673,8 @@ function listenEventBannerSettings() {
   }
 }
 
-if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", listenEventBannerSettings); } else { listenEventBannerSettings(); }
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", listenEventBannerSettings);
+} else {
+  listenEventBannerSettings();
+}

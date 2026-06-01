@@ -665,6 +665,8 @@ function setupEvents() {
   $("wishSearch").addEventListener("input", renderWishes);
   $("historySearch").addEventListener("input", renderHistory);
   $("quickFlowerForm").addEventListener("submit", saveQuickFlower);
+  const eventBannerForm = $("eventBannerForm");
+  if (eventBannerForm) eventBannerForm.addEventListener("submit", saveEventBanner);
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -698,4 +700,5 @@ function setupEvents() {
 }
 
 setupEvents();
+listenEventBannerSettings();
 onAuthStateChanged(auth, setAuthUi);
