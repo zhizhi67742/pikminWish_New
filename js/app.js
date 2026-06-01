@@ -394,9 +394,14 @@ function startFlowerCatalogListener() {
     window.firebaseFns.onSnapshot(
       window.firebaseFns.collection(window.firebaseDB, "flowerCatalog"),
       function (snapshot) {
-        cloudFlowerCatalog = snapshot.docs.map(function (docSnap) {
-          return docSnap.data() || {};
-        });
+        cloudFlowerCatalog = snapshot.docs
+          .filter(function (docSnap) {
+            var data = docSnap.data() || {};
+            return docSnap.id !== "__eventBanner" && data.hiddenFromCatalog !== true && data.type !== "eventBanner";
+          })
+          .map(function (docSnap) {
+            return docSnap.data() || {};
+          });
         rebuildFlowerDexFromSources();
         try { renderAll(); } catch (error) { console.warn("自訂花種重新整理失敗", error); }
       },
@@ -4660,7 +4665,7 @@ function listenEventBannerSettings() {
       return;
     }
     eventBannerListenStarted = true;
-    const ref = window.firebaseFns.doc(window.firebaseDB, "siteSettings", "eventBanner");
+    const ref = window.firebaseFns.doc(window.firebaseDB, "flowerCatalog", "__eventBanner");
     window.firebaseFns.onSnapshot(ref, (docSnap) => {
       applyEventBannerSettings(docSnap.exists() ? docSnap.data() : null);
     }, (error) => {

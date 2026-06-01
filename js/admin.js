@@ -243,7 +243,9 @@ function startAdminListeners() {
 
   if (!unsubscribeFlowers) {
     unsubscribeFlowers = onSnapshot(collection(db, "flowerCatalog"), (snapshot) => {
-      customFlowerDocs = snapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+      customFlowerDocs = snapshot.docs
+        .filter((docSnap) => docSnap.id !== "__eventBanner" && docSnap.data()?.hiddenFromCatalog !== true && docSnap.data()?.type !== "eventBanner")
+        .map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
       renderCustomFlowers();
     }, (error) => {
       console.error(error);
@@ -529,7 +531,7 @@ function renderEventBannerForm() {
 
 function listenEventBannerSettings() {
   if (unsubscribeEventBanner) unsubscribeEventBanner();
-  unsubscribeEventBanner = onSnapshot(doc(db, "siteSettings", "eventBanner"), (docSnap) => {
+  unsubscribeEventBanner = onSnapshot(doc(db, "flowerCatalog", "__eventBanner"), (docSnap) => {
     eventBannerSettings = docSnap.exists() ? docSnap.data() : null;
     renderEventBannerForm();
   }, (error) => {
@@ -540,17 +542,33 @@ function listenEventBannerSettings() {
 
 async function saveEventBanner(event) {
   event.preventDefault();
-  if (!currentUser || !isAdmin(currentUser)) return;
+  if (!currentUser || !isAdmin(currentUser)) {
+    alert("請先用管理員帳號登入後再儲存活動公告。");
+    return;
+  }
   const enabled = !!$("eventBannerEnabled")?.checked;
   const badge = $("eventBannerBadgeInput")?.value.trim() || "🌼 新花公告";
   const title = $("eventBannerTitleInput")?.value.trim() || "活動花種登場";
   const text = $("eventBannerTextInput")?.value.trim() || "本月活動花種，記得更新你的圖鑑庫存！";
-  await setDoc(doc(db, "siteSettings", "eventBanner"), {
-    enabled, badge, title, text, updatedAt: Date.now(), updatedBy: currentUser.email || ""
-  }, { merge: true });
   const notice = $("eventBannerNotice");
-  if (notice) notice.textContent = "已儲存，正式網站會自動更新。";
-  alert("活動公告已儲存。");
+  try {
+    await setDoc(doc(db, "flowerCatalog", "__eventBanner"), {
+      type: "eventBanner",
+      hiddenFromCatalog: true,
+      enabled,
+      badge,
+      title,
+      text,
+      updatedAt: Date.now(),
+      updatedBy: currentUser.email || ""
+    }, { merge: true });
+    if (notice) notice.textContent = "已儲存，正式網站會自動更新。";
+    alert("活動公告已儲存。");
+  } catch (error) {
+    console.error("活動公告儲存失敗", error);
+    if (notice) notice.textContent = "儲存失敗：" + (error?.message || error);
+    alert("活動公告儲存失敗，請按 F12 看 Console 錯誤。\n" + (error?.message || error));
+  }
 }
 
 function renderWishes() {
