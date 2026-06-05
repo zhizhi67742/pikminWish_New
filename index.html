@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>花農許願池</title>
-<link href="css/style.css?v=event-banner-flowercatalog-20260602?v=history-pager-center-20260531-002" rel="stylesheet"/>
+<link href="css/style.css?v=dex-empty-filter-20260606-001" rel="stylesheet"/>
 <style>
 .wish-history-item{
   background: rgba(255,255,255,0.05);
@@ -587,6 +587,16 @@ h1 {
 }
 </style>
 
+
+<style>
+.dex-last-updated{
+  margin-top:6px;
+  font-size:13px;
+  color:rgba(255,255,255,.72);
+  font-weight:500;
+}
+</style>
+
 </head>
 <body>
 <div aria-busy="true" aria-live="polite" class="app-loading-overlay" id="appLoadingOverlay">
@@ -734,6 +744,7 @@ h1 {
 <div>
 <h2>🌸 花朵圖鑑</h2>
 <p class="hint dex-jump-tip">點擊花旁邊的「缺」即可跳回許願頁快速許願。</p>
+<div id="dexLastUpdated" class="dex-last-updated">🕒 最後更新：尚未更新</div>
 </div>
 <div class="limit-settings">
 <label>
@@ -764,6 +775,7 @@ h1 {
 <button class="dex-filter-btn" data-filter="full" onclick="setDexFilter('full')" type="button">只看已滿</button>
 <button class="dex-filter-btn" data-filter="essence" onclick="setDexFilter('essence')" type="button">只缺精華</button>
 <button class="dex-filter-btn" data-filter="petal" onclick="setDexFilter('petal')" type="button">只缺花瓣</button>
+<button class="dex-filter-btn" data-filter="empty" onclick="setDexFilter('empty')" type="button">完全沒有</button>
 </div>
 </div>
 <div class="dex-filter-line">
@@ -820,7 +832,25 @@ h1 {
 <span class="changelog-badge">UPDATE LOG</span>
 </div>
 <div class="changelog-grid">
+
 <article class="update-card latest">
+<div class="update-card-head">
+<div>
+<div class="update-version">🌸 PikminWish v1.3.2</div>
+<div class="update-date">2026 / 06 / 06</div>
+</div>
+
+</div>
+<div class="update-section">
+<h3>🌱 功能新增</h3>
+<ul>
+<li>新增圖鑑上次更新時間顯示。</li>
+<li>新增圖鑑進階選項「完全沒有」。</li>
+</ul>
+</div>
+</article>
+
+<article class="update-card">
 <div class="update-card-head">
 <div>
 <div class="update-version">🌸 PikminWish v1.3.1</div>
@@ -1049,7 +1079,7 @@ h1 {
 </div>
 </div>
 </div>
-<script src="js/app.js?v=event-banner-flowercatalog-20260602?v=google-popup-first-20260531-001"></script>
+<script src="js/app.js?v=dex-empty-filter-20260606-001"></script>
 <!-- Firebase -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";

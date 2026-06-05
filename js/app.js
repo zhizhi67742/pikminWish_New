@@ -423,6 +423,7 @@ document.addEventListener("DOMContentLoaded", function () {
   startFlowerCatalogListener();
   fixExampleCardMessageSafely();
   updateLimitInputs();
+  updateDexLastUpdatedDisplay();
   renderAll();
 });
 
@@ -2572,7 +2573,7 @@ function renderDex() {
 
 
 function getDexFilterGroup(mode) {
-  if (["missing", "full", "essence", "petal"].includes(mode)) return "status";
+  if (["missing", "full", "essence", "petal", "empty"].includes(mode)) return "status";
   if (["white", "yellow", "red", "blue"].includes(mode)) return "color";
   if (["forget", "rose"].includes(mode)) return "monthly";
   return "all";
@@ -2602,6 +2603,7 @@ function isDexRowMatchingFilter(flowerName, color) {
     if (mode === "full") return isFull;
     if (mode === "essence") return essence < essenceLimit;
     if (mode === "petal") return petal < petalLimit;
+    if (mode === "empty") return essence === 0 && petal === 0;
     return true;
   });
 
@@ -3053,14 +3055,61 @@ function getDexBackup() {
   }
 }
 
+function normalizeDexUpdatedAt(value) {
+  if (!value) return 0;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  if (value && typeof value.seconds === "number") return value.seconds * 1000;
+  return 0;
+}
+
+function formatDexLastUpdated(value) {
+  const ts = normalizeDexUpdatedAt(value);
+  if (!ts) return "尚未更新";
+
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return "尚未更新";
+
+  const now = new Date();
+  const isSameYear = date.getFullYear() === now.getFullYear();
+  const pad = function (n) { return String(n).padStart(2, "0"); };
+
+  const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+  if (isSameYear) return `${monthDay} ${time}`;
+  return `${date.getFullYear()}/${monthDay} ${time}`;
+}
+
+function updateDexLastUpdatedDisplay(value) {
+  const el = document.getElementById("dexLastUpdated");
+  if (!el) return;
+
+  const ts = normalizeDexUpdatedAt(value || safeGetLocalStorage("flowerDexLastSavedAt"));
+  el.textContent = `🕒 最後更新：${formatDexLastUpdated(ts)}`;
+}
+
+function setDexLastUpdatedNow() {
+  const now = Date.now();
+  safeSetLocalStorage("flowerDexLastSavedAt", String(now));
+  updateDexLastUpdatedDisplay(now);
+  return now;
+}
+
 function saveDexBackupValue(key, number) {
+  const now = Date.now();
   const backup = getDexBackup();
   backup[key] = {
     value: Number(number) || 0,
-    updatedAt: Date.now()
+    updatedAt: now
   };
   safeSetLocalStorage("flowerDexBackupV2", JSON.stringify(backup));
-  safeSetLocalStorage("flowerDexLastSavedAt", String(Date.now()));
+  safeSetLocalStorage("flowerDexLastSavedAt", String(now));
+  updateDexLastUpdatedDisplay(now);
   scheduleDexCloudSave();
 }
 
@@ -3122,12 +3171,20 @@ async function loadDexFromCloud(name) {
     dexCloudLoadedName = String(name || getCurrentNickname() || "").trim();
 
     if (!snap.exists()) {
+      updateDexLastUpdatedDisplay();
       scheduleDexCloudSave();
       return;
     }
 
     const data = snap.data() || {};
     const values = data.values || {};
+    const cloudLastUpdated = normalizeDexUpdatedAt(data.updatedAt || data.lastUpdated);
+    if (cloudLastUpdated) {
+      safeSetLocalStorage("flowerDexLastSavedAt", String(cloudLastUpdated));
+      updateDexLastUpdatedDisplay(cloudLastUpdated);
+    } else {
+      updateDexLastUpdatedDisplay();
+    }
 
     dexCloudIsApplying = true;
 
@@ -3205,8 +3262,11 @@ async function saveDexToCloud(name) {
       values: values,
       essenceLimit: essenceLimit,
       petalLimit: petalLimit,
-      updatedAt: now
+      updatedAt: now,
+      lastUpdated: now
     }, { merge: true });
+    safeSetLocalStorage("flowerDexLastSavedAt", String(now));
+    updateDexLastUpdatedDisplay(now);
   } catch (error) {
     console.warn("圖鑑雲端儲存失敗", error);
   }
