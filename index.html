@@ -1192,6 +1192,18 @@ h1 {
         window.__pikminAuthResolvedUser = user;
         window.__pikminGoogleSessionOk = true;
         sessionStorage.setItem("pikminGoogleSessionOk", "true");
+        try {
+          if (window.firebaseDB && window.firebaseFns && user) {
+            const { doc, getDoc } = window.firebaseFns;
+            getDoc(doc(window.firebaseDB, "users", user.uid)).then((snap)=>{
+              if (snap.exists()) {
+                const data = snap.data() || {};
+                if (data.nickname) localStorage.setItem("flowerWishNickname", data.nickname);
+                if (data.platform) localStorage.setItem("flowerWishPlatform", data.platform);
+              }
+            });
+          }
+        } catch(e) { console.warn(e); }
         if (status) status.textContent = `${user.displayName || user.email || "Google 使用者"}`;
         if (loginBtn) loginBtn.style.display = "none";
         if (logoutBtn) logoutBtn.style.display = "inline-flex";
@@ -1513,7 +1525,7 @@ h1 {
 <a class="footer-mobile-btn" href="https://line.me/ti/g2/J5Fc9xmn_yQcE-ZKfAfGxPe4VjUrdTslS-I9kQ?utm_source=invitation&amp;utm_medium=link_copy&amp;utm_campaign=default" target="_blank">💚 LINE</a>
 </div>
 <div>
-    © 2026 梔梔 v1.3.2 ｜ 許願池及花朵圖鑑
+    © 2026 梔梔 v1.3.1 ｜ 許願池及花朵圖鑑
   </div>
 </div>
 <script>
@@ -1588,6 +1600,18 @@ h1 {
     localStorage.setItem("flowerWishNickname", finalNickname);
     localStorage.setItem("flowerWishPlatform", finalPlatform);
     window.nickname = finalNickname;
+
+    try {
+      const user = window.currentPikminUser;
+      if (user && window.firebaseDB && window.firebaseFns) {
+        const { doc, setDoc } = window.firebaseFns;
+        setDoc(doc(window.firebaseDB, "users", user.uid), {
+          nickname: finalNickname,
+          platform: finalPlatform,
+          updatedAt: Date.now()
+        }, { merge: true });
+      }
+    } catch (e) { console.warn("nickname sync failed", e); }
 
     const mainInput = document.getElementById("nicknameInput");
     if (mainInput) mainInput.value = finalNickname;
