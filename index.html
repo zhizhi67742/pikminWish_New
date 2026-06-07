@@ -1192,18 +1192,6 @@ h1 {
         window.__pikminAuthResolvedUser = user;
         window.__pikminGoogleSessionOk = true;
         sessionStorage.setItem("pikminGoogleSessionOk", "true");
-        try {
-          if (window.firebaseDB && window.firebaseFns && user) {
-            const { doc, getDoc } = window.firebaseFns;
-            getDoc(doc(window.firebaseDB, "users", user.uid)).then((snap)=>{
-              if (snap.exists()) {
-                const data = snap.data() || {};
-                if (data.nickname) localStorage.setItem("flowerWishNickname", data.nickname);
-                if (data.platform) localStorage.setItem("flowerWishPlatform", data.platform);
-              }
-            });
-          }
-        } catch(e) { console.warn(e); }
         if (status) status.textContent = `${user.displayName || user.email || "Google 使用者"}`;
         if (loginBtn) loginBtn.style.display = "none";
         if (logoutBtn) logoutBtn.style.display = "inline-flex";
@@ -1600,18 +1588,6 @@ h1 {
     localStorage.setItem("flowerWishNickname", finalNickname);
     localStorage.setItem("flowerWishPlatform", finalPlatform);
     window.nickname = finalNickname;
-
-    try {
-      const user = window.currentPikminUser;
-      if (user && window.firebaseDB && window.firebaseFns) {
-        const { doc, setDoc } = window.firebaseFns;
-        setDoc(doc(window.firebaseDB, "users", user.uid), {
-          nickname: finalNickname,
-          platform: finalPlatform,
-          updatedAt: Date.now()
-        }, { merge: true });
-      }
-    } catch (e) { console.warn("nickname sync failed", e); }
 
     const mainInput = document.getElementById("nicknameInput");
     if (mainInput) mainInput.value = finalNickname;
