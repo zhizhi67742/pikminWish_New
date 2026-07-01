@@ -22,6 +22,7 @@ import {
 // 例如：const ADMIN_EMAILS = ["yourname@gmail.com"];
 const ADMIN_EMAILS = [
   "y0966621741@gmail.com"
+  "kcwang35@gmail.com"
 ];
 
 const firebaseConfig = {
