@@ -21,7 +21,7 @@ import {
 // ⭐ 重要：請把下面改成你的 Google 登入信箱。
 // 例如：const ADMIN_EMAILS = ["yourname@gmail.com"];
 const ADMIN_EMAILS = [
-  "y0966621741@gmail.com"
+  "y0966621741@gmail.com",
   "kcwang35@gmail.com"
 ];
 
